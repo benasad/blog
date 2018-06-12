@@ -1,0 +1,80 @@
+0015-ossec_rules.xml - Rule 503 - Level 3 -> Ossec agent started.
+object=i/Host/Application/Service	behavior=/Execute/Start	deviceGroup=/Application	outcome=/Success	Significance=/Informational
+
+0015-ossec_rules.xml - Rule 504 - Level 3 -> Ossec agent disconnected.
+object=/Host/Application/Service	behavior=/Execute/Stop	deviceGroup=/Application	outcome=/Success	Significance=/Informational/Error
+
+0015-ossec_rules.xml - Rule 516 - Level 3 -> System Audit event.
+object=/Host/Operating System	behavior=/Found/Misconfigured	deviceGroup=/Assessment Tool	outcome=/Failure	significance=/Information/Alert
+
+0015-ossec_rules.xml - Rule 533 - Level 7 -> Listened ports status (netstat) changed (new port opened or closed).
+object=/Host/Operating System	behaior=/Modify	deviceGroup=/Operating System outcome=/Success	significance=/Informational/Warning
+
+0015-ossec_rules.xml - Rule 550 - Level 7 -> Integrity checksum changed.
+object=/Host/Resource/File	behavior=/Modify	deviceGroup=/IDS/Host	outcome=/Success	Significance=/Suspicious
+
+0085-pam_rules.xml - Rule 5501 - Level 3 -> PAM: Login session opened.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=Success	significance=/Informational
+
+0085-pam_rules.xml - Rule 5502 - Level 3 -> PAM: Login session closed.
+
+0085-pam_rules.xml - Rule 5503 - Level 5 -> PAM: User login failed.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=/Failure	significance=/Informational/Warning
+
+0085-pam_rules.xml - Rule 5504 - Level 5 -> PAM: Attempt to login with an invalid user.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=/Attempt	significance=/Suspicious
+
+0015-ossec_rules.xml - Rule 554 - Level 5 -> File added to the system.
+object=/Host/Resource/File	behavior=/Create	deviceGroup=/IDS/Host	outcome=Success	Significance=/Informational
+
+0015-ossec_rules.xml - Rule 591 - Level 3 -> Log file rotated.
+
+0020-syslog_rules.xml - Rule 2932 - Level 7 -> New Yum package installed.
+object=/Host/Resource/File	behavior=/Create	deviceGroup=/Operating System	outcome=Success	Significance=/Informational
+
+0020-syslog_rules.xml - Rule 2933 - Level 7 -> Yum package updated.
+object=/Host/Resource/File	behavior=/Modify	deviceGroup=/Operating System	outcome=Success	Significance=/Informational
+
+0030-postfix_rules.xml - Rule 3333 - Level 7 -> Postfix stopped.
+object=Host/Application/Service	behavior=Execute/Start	deviceGroup=Application	outcome=Success	Significance=Informational
+
+0030-postfix_rules.xml - Rule 3334 - Level 3 -> Postfix started.
+object=Host/Application/Service	behavior=Execute/Stop	deviceGroup=Application	outcome=Success	Significance=/Informational/Error
+
+0020-syslog_rules.xml - Rule 5303 - Level 3 -> User successfully changed UID to root.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=Success	significance=/Informational
+
+0020-syslog_rules.xml - Rule 5304 - Level 3 -> User successfully changed UID.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=Success	significance=/Informational
+
+0020-syslog_rules.xml - Rule 5305 - Level 4 -> First time (su) is executed by user.
+
+0020-syslog_rules.xml - Rule 5402 - Level 3 -> Successful sudo to ROOT executed
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=Success	significance=/Informational
+
+0020-syslog_rules.xml - Rule 5403 - Level 4 -> First time user executed sudo.
+
+0095-sshd_rules.xml - Rule 5702 - Level 5 -> sshd: Reverse lookup error (bad ISP or attack).
+
+0095-sshd_rules.xml - Rule 5715 - Level 3 -> sshd: authentication success.
+object=/Host/Operating System	behavior=/Authentication/Verify	deviceGroup=/Operating System	outcome=Success	significance=/Informational
+
+0180-pure-ftpd_rules.xml - Rule 11301 - Level 3 -> pure-ftpd: New FTP connection.
+object=/Host/Application	behavior=/Communicate/Query	deviceGroup=/Application	outcome=Success	significance=/Informational
+
+0180-pure-ftpd_rules.xml - Rule 11305 - Level 5 -> pure-ftpd: Attempt to access invalid directory
+object=/Host/Resource/File	behavior=/Access	deviceGroup=/Application	outcome=Attempt	significance=/Informational/Alert
+
+0180-pure-ftpd_rules.xml - Rule 11307 - Level 10 -> pure-ftpd: Multiple connection attempts from same source.
+object=/Host/Application	behavior=/Communicate/Query	deviceGroup=/Application	outcome=Success	significance=/Suspicious
+
+0180-pure-ftpd_rules.xml - Rule 11309 - Level 3 -> pure-ftpd: FTP Authentication success.
+object=/Host/Application	behavior=/Authentication/Verify	deviceGroup=/Application	outcome=Success	significance=/Informational
+
+0365-auditd_rules.xml - Rule 80730 - Level 3 -> Auditd: SELinux permission check
+
+0400-openvpn_rules.xml - Rule 81801 - Level 3 -> OpenVPN: User logged in
+object=/Host/Application	behavior=/Authentication/Verify	deviceGroup=/Application	outcome=Success	significance=/Informational
+
+0600-fileage_rules.xml - Rule 700001 - Level 10 -> A monitored file is older than the designated age
+object=/Host/Resource/File	behavior=/Found	deviceGroup=/Operating System	outcome=Success	Significance=/Informational

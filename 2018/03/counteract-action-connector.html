@@ -1,0 +1,592 @@
+
+  
+
+
+
+
+
+
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BASEC Blog | ArcSight CounterACT Action Connector </title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/bootstrap.min.js"></script>
+  <script src="/assets/js/header.js"></script>
+  <script src="/assets/js/toc.js"></script>
+  <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/theme.css" rel="stylesheet">
+  <link href="/assets/css/syntax.css" rel="stylesheet">
+  <link href="/assets/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  
+
+  
+
+
+ <script type="text/javascript">
+  WebFontConfig = {
+    google: {
+      families: ['Ubuntu::latin']
+    }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+      '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+    wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">BASEC Blog</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/">/home</a></li>
+          <li><a href="/archive.html">/archive</a></li>
+          <li><a href="/tags.html">/tags</a></li>
+          <li><a href="/about.html">/about</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="wrapper">
+      <div class="content">
+        <div class="container container-center">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="article">
+                <div class="well">
+                  <h1><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></h1>
+                  <div class="post-meta">
+                    <div class="post-time">
+                      <i class="fa fa-calendar"></i>
+                      <time>05 Mar 2018</time>
+                    </div>
+                    <ul>
+                      
+                        <li><a href="/tag/arcsight">arcsight</a></li>
+                      
+                        <li><a href="/tag/counteract">counteract</a></li>
+                      
+                        <li><a href="/tag/flexconnector">flexconnector</a></li>
+                      
+                    </ul>
+                  </div>
+                  <div class="post-content">
+                    <div id="toc" class="toc"></div>
+                    <h2 id="introduction">Introduction</h2>
+
+<p>The ArcSight CounterACT Connector is an extensible framework built on top of the standard ArcSight SmartConnector. This allows incredibly flexible integrations between the ArcSight ESM and third party products / external scripts / generic commands which produce a usable output. In this post I am going to show a simple but useful example of running two commands through the CounterACT connector, on a centralised server, parsing the result of the commands into actionable events which can then be used as part of the workflow within the ESM.</p>
+
+<p>The two commands I intend to use in this example are <code class="highlighter-rouge">Nmap</code> and <code class="highlighter-rouge">whois</code> both of which are useful to Analysts using the ESM, however by default, without the CounterACT connector would have to be installed locally on the Analysts’ PC. When using the CounterACT connector these commands can be installed on a central server reducing the number of firewall rules which need to be opened.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>The installation of the CounterACT connector follows the standard SmartConnector process for the most part, in my examples below I am using a CentOS 7 server:</p>
+
+<p>Choose the installation directory, ensuring ownership by the <code class="highlighter-rouge">arcsight</code> user. e.g <code class="highlighter-rouge">chown arcsight:arcsight /opt/arcsight/connectors/counteract</code><br />
+Make sure the ArcSight Connector binary is marked as executable. e.g <code class="highlighter-rouge">chmod +x /home/arcsight/ArcSight-7.4.0.7963.0-Connector-Linux64.bin</code></p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">[</span>arcsight@connectors connectors]<span class="nv">$ </span>ll
+total 0
+drwxrwxr-x. 2 arcsight arcsight  6 Dec 22 18:09 counteract
+drwxrwxr-x. 3 arcsight arcsight 20 Sep 17 01:09 syslog_tcp
+drwxrwxr-x. 3 arcsight arcsight 20 Sep 29 03:39 syslog_udp
+drwxrwxr-x. 3 arcsight arcsight 20 Dec 10 15:44 threatintel
+<span class="o">[</span>arcsight@connectors connectors]<span class="nv">$ </span>/home/arcsight/ArcSight-7.4.0.7963.0-Connector-Linux64.bin 
+Preparing to install...
+Extracting the JRE from the installer archive...
+Unpacking the JRE...
+Extracting the installation resources from the installer archive...
+Configuring the installer <span class="k">for </span>this system<span class="s1">'s environment...
+
+Launching installer...</span></code></pre></figure>
+
+<p>Go through the motions of installing a standard connector:</p>
+<ul>
+  <li>enter the directory created earlier</li>
+  <li>don’t create links (unless you really want to)</li>
+  <li>press enter and let the installation complete</li>
+</ul>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Pre-Installation Summary
+<span class="nt">------------------------</span>
+
+Please Review the Following Information Before Continuing:
+
+Product Name:
+    ArcSight SmartConnector
+
+Install Folder:
+    /opt/arcsight/connectors/counteract
+
+Link Folder:
+    DO NOT INSTALL
+
+
+
+PRESS &lt;ENTER&gt; TO CONTINUE: 
+
+<span class="o">===============================================================================</span>
+Installing...
+<span class="nt">-------------</span>
+
+ <span class="o">[==================</span>|<span class="o">==================</span>|<span class="o">==================</span>|<span class="o">==================]</span>
+ <span class="o">[</span><span class="nt">------------------</span>|------------------|------------------|------------------]
+
+
+
+<span class="o">===============================================================================</span>
+Installation Complete
+<span class="nt">---------------------</span></code></pre></figure>
+
+<p>At this stage the core components of the connector should be installed and the installation will exit. The installer will instruct you to finish the configuration of the SmartAgent, please go to the folder (in my case <code class="highlighter-rouge">/opt/arcsight/connectors/counteract/current/bin/</code> and execute the script <code class="highlighter-rouge">./runagentsetup.sh</code></p>
+
+<p>Follow the instructions entered below:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">[</span>arcsight@connectors bin]<span class="nv">$ </span>./runagentsetup.sh 
+
+Assuming ARCSIGHT_HOME: /opt/arcsight/connectors/counteract/current
+Assuming JAVA_HOME: /opt/arcsight/connectors/counteract/current/jre
+
+ArcSight Agent Setup starting...
+
+Connector Setup Wizard starting <span class="k">in </span>mode <span class="o">[</span>CONSOLE]
+<span class="o">[</span>Fri Dec 22 18:12:16 GMT 2017] <span class="o">[</span>INFO <span class="o">]</span> Checking <span class="k">for </span>a running instance of connector...
+<span class="o">[</span>Fri Dec 22 18:12:17 GMT 2017] <span class="o">[</span>INFO <span class="o">]</span> Starting up connector...
+
+Connector Setup
+<span class="nt">---------------</span>
+
+<span class="nt">--------------------------------------------------------------------------------</span>
+What would you like to <span class="k">do</span>?
+
+
+0-	Add a Connector
+1-	Set Global Parameters
+
+Please <span class="k">select </span>an option: <span class="o">[</span>Add a Connector] <span class="o">[</span>0..1/cancel] :
+
+
+<span class="nt">--------------------------------------------------------------------------------</span>
+Select the connector to configure
+
+
+Type:
+	0-	Amazon Web Services CloudTrail
+	1-	Apache HTTP Server Access File
+	2-	Apache HTTP Server Error File
+	3-	Apache Tomcat File
+	4-	ArcSight Asset Import File
+	5-	ArcSight CEF Cisco FireSIGHT Syslog
+	6-	ArcSight CEF Encrypted Syslog <span class="o">(</span>UDP<span class="o">)</span>
+	7-	ArcSight Common Event Format File
+	8-	ArcSight Common Event Format Hadoop
+	9-	ArcSight Common Event Format Multiple File
+	10-	ArcSight Common Event Format REST 
+	11-	ArcSight FlexConnector CounterACT
+	12-	ArcSight FlexConnector File
+	13-	ArcSight FlexConnector ID-Based DB
+	14-	ArcSight FlexConnector JSON Folder Follower
+	15-	ArcSight FlexConnector Multiple DB
+	16-	ArcSight FlexConnector Multiple Folder File
+	17-	ArcSight FlexConnector Regex File
+	18-	ArcSight FlexConnector Regex Folder File
+	19-	ArcSight FlexConnector REST
+<span class="o">(</span>N<span class="o">)</span>ext -	<span class="nt">-------------</span> Next page <span class="nt">-------------</span> 
+Please <span class="k">select </span>an option <span class="o">[</span>0..19]: </code></pre></figure>
+
+<p>Type 11 to select the ArcSight FlexConnector CounterACT option, note that this number changes from time to time</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Please <span class="k">select </span>an option <span class="o">[</span>0..19]: 11
+
+
+Please verify the following parameters
+
+Type: ArcSight FlexConnector CounterACT
+
+
+Are the values correct <span class="o">[</span>yes/no/back/cancel]?yes
+
+
+<span class="nt">--------------------------------------------------------------------------------</span>
+Enter the parameter details
+
+Configuration File:</code></pre></figure>
+
+<p>At this stage we haven’t introduced anything about the configuration file, to allow us to finish installing the connector at this stage enter <code class="highlighter-rouge">tmp</code> here, the connector will attempt to find this file, but fail verification, this doesn’t matter at this stage and serves as a nice reminder that the full filename is <code class="highlighter-rouge">tmp.counteract.properties</code></p>
+
+<p>I finish off the configuration of the connector below:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Configuration File: tmp
+
+
+Please verify the following parameters
+
+Configuration File: tmp
+
+
+Are the values correct <span class="o">[</span>yes/no/back/cancel]?yes
+
+
+   |                                        | 0%Verifying the parameters
+   |########################################| 100%
+Connector parameters did not pass the verification with error <span class="o">[</span>0:Failed to <span class="nb">read </span>configuration from file <span class="o">[</span>tmp] <span class="o">(</span>Unable to load properties from file <span class="o">[</span>tmp.counteract.properties]<span class="o">)</span>
+<span class="o">]</span><span class="nb">.</span> Do you still want to <span class="k">continue</span>?
+<span class="o">[</span>yes/no] yes
+<span class="nt">--------------------------------------------------------------------------------</span>
+Enter the <span class="nb">type </span>of destination
+
+
+0-	ArcSight Manager <span class="o">(</span>encrypted<span class="o">)</span>
+1-	ArcSight Logger SmartMessage <span class="o">(</span>encrypted<span class="o">)</span>
+2-	ArcSight Logger SmartMessage Pool <span class="o">(</span>encrypted<span class="o">)</span>
+3-	CEF File
+4-	Event Broker <span class="o">(</span>CEF Kafka<span class="o">)</span>
+5-	CEF Syslog
+6-	CEF Encrypted Syslog <span class="o">(</span>UDP<span class="o">)</span>
+7-	CSV File
+8-	Raw Syslog
+
+Please <span class="k">select </span>an option: <span class="o">[</span>ArcSight Manager <span class="o">(</span>encrypted<span class="o">)]</span> <span class="o">[</span>0..8/back/cancel] :
+
+Manager Hostname: esm
+Manager Port[8443]: 
+User: admin
+Password: 
+                             
+AUP Master Destination:      
+	0-	<span class="nb">true
+	</span>1-	<span class="nb">false
+</span>Please <span class="k">select </span>an option <span class="o">[</span>0..1][false]: 
+Filter Out All Events:
+	0-	<span class="nb">true
+	</span>1-	<span class="nb">false
+</span>Please <span class="k">select </span>an option <span class="o">[</span>0..1][false]: 
+Enable Demo CA:
+	0-	<span class="nb">true
+	</span>1-	<span class="nb">false
+</span>Please <span class="k">select </span>an option <span class="o">[</span>0..1][false]: 
+
+
+Please verify the following parameters
+
+Manager Hostname: esm
+Manager Port: 8443
+User: admin
+Password: <span class="k">********</span>
+AUP Master Destination: <span class="nb">false
+</span>Filter Out All Events: <span class="nb">false
+</span>Enable Demo CA: <span class="nb">false
+
+
+</span>Are the values correct <span class="o">[</span>yes/no/back/cancel]?
+
+<span class="nt">--------------------------------------------------------------------------------</span>
+Enter the connector details
+
+
+Name[]: BASEC_CounterACT
+Location[]: connectors.basec.co.uk
+DeviceLocation[]: /opt/arcsight/connectors/counteract
+Comment[]: 
+
+
+Please verify the following parameters
+
+Name: BASEC_CounterACT
+Location: connectors.basec.co.uk
+DeviceLocation: /opt/arcsight/connectors/counteract
+Comment: 
+
+
+Are the values correct <span class="o">[</span>yes/no/back/cancel]?
+
+Registering destination
+   |########################################| 100%
+<span class="nt">--------------------------------------------------------------------------------</span>
+Following certificate will be imported into connector trust store:
+Host/port: esm_8443
+Details: <span class="nv">CN</span><span class="o">=</span>esm, <span class="nv">OU</span><span class="o">=</span>ESM, <span class="nv">O</span><span class="o">=</span>Arcsight, <span class="nv">L</span><span class="o">=</span>95014, <span class="nv">ST</span><span class="o">=</span>CA, <span class="nv">C</span><span class="o">=</span>US
+
+
+
+
+
+0-	Import the certificate to connector from destination
+1-	Do not import the certificate to connector from destination
+
+Please <span class="k">select </span>an option: <span class="o">[</span>Import the certificate to connector from destination] <span class="o">[</span>0..1/back/cancel] : 
+
+
+   |                                        | 0%Importing certificate, registering destination and restarting the container
+   |########################################| 100%
+<span class="nt">--------------------------------------------------------------------------------</span>
+Add connector Summary
+Following are the added connector details:
+Connector Name <span class="o">[</span>BASEC_CounterACT], Connector Type <span class="o">[</span>ngflexcounteract]
+
+
+Continue <span class="o">[</span>yes] ?
+
+<span class="nt">--------------------------------------------------------------------------------</span>
+Would you like to <span class="k">continue </span>or <span class="nb">exit</span>?
+
+
+0-	Continue
+1-	Exit
+
+Please <span class="k">select </span>an option: <span class="o">[</span>Continue] <span class="o">[</span>0..1/back/cancel] :1</code></pre></figure>
+
+<h2 id="making-it-work">Making it work</h2>
+
+<p>We have already seen reference to the <code class="highlighter-rouge">counteract.properties</code> file. This is the file which controls what is executed, and what information is provided to the script/application/command. This file must be created under the flexagent directory of the connector, in my example this is <code class="highlighter-rouge">/opt/arcsight/connectors/counteract/current/user/agent/flexagent</code>.</p>
+
+<p>My file, which executes Nmap and whois is below:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">command.count<span class="o">=</span>2
+<span class="nb">command</span><span class="o">[</span>0].name<span class="o">=</span>whois
+<span class="nb">command</span><span class="o">[</span>0].displayname<span class="o">=</span>whois
+<span class="nb">command</span><span class="o">[</span>0].parameter.count<span class="o">=</span>1
+<span class="nb">command</span><span class="o">[</span>0].parameter[0].name<span class="o">=</span>ipaddress
+<span class="nb">command</span><span class="o">[</span>0].parameter[0].displayname<span class="o">=</span>Ip Address
+<span class="nb">command</span><span class="o">[</span>0].action<span class="o">=</span>/usr/bin/whois <span class="k">${</span><span class="nv">ipaddress</span><span class="k">}</span>
+<span class="nb">command</span><span class="o">[</span>1].name<span class="o">=</span>nmap
+<span class="nb">command</span><span class="o">[</span>1].displayname<span class="o">=</span>nmap
+<span class="nb">command</span><span class="o">[</span>1].parameter.count<span class="o">=</span>1
+<span class="nb">command</span><span class="o">[</span>1].parameter[0].name<span class="o">=</span>ipaddress
+<span class="nb">command</span><span class="o">[</span>1].parameter[0].displayname<span class="o">=</span>Ip Address
+<span class="nb">command</span><span class="o">[</span>1].action<span class="o">=</span>/bin/nmap <span class="k">${</span><span class="nv">ipaddress</span><span class="k">}</span></code></pre></figure>
+
+<p>Important points to note:</p>
+<ul>
+  <li>You can include many commands by increasing the count and numbering them sequentially.</li>
+  <li>You can include many parameters within the command</li>
+  <li>Each commmand name must be unique</li>
+  <li>Each paramater name within each command must be unique and also numbered sequentially</li>
+  <li>The full path must be provided for the command which is listed after action</li>
+  <li>Parameters must be provided in the ${name} format</li>
+</ul>
+
+<p>At this stage you can keep the <code class="highlighter-rouge">tmp.counteract.properties</code> filename, or name it something different. Note that if you name it something different you must re-run ./runagentsetup.sh to provide the updated configuration name.</p>
+
+<p>You should also notice the connector will have appeared in ESM as a normal SmartConnector would.</p>
+
+<p><img src="/assets/images/counteract-action-connector/connector.png" alt="img" class="center-image" /></p>
+
+<h2 id="executing-a-command">Executing a Command</h2>
+
+<p>Whilst you have noticed the Connector has appeared in ESM as expected, there is an option available which is special. You are able to execute the commands directly by right clicking on the Connector, selecting Send Command -&gt; CounterACT -&gt; your command</p>
+
+<p><img src="/assets/images/counteract-action-connector/connectorcommand.png" alt="img" class="center-image" /></p>
+
+<p>After entering the IP Address when prompted (I entered 123.123.123.123) a new window will open in the central Viewer panel. Once the command has finished executing the result will be displayed in this central window, as shown below:</p>
+
+<p><img src="/assets/images/counteract-action-connector/connectoroutput.png" alt="img" class="center-image" /></p>
+
+<p>A much better and more professional method would be to utilise the Integration Command capability of the ArcSight ESM to execute the CounterACT connector command. This is relatively self explanatory, the screenshot below shows a simple configuration where the $selectedItem is provided as the parameter to the script when executed.</p>
+
+<p><img src="/assets/images/counteract-action-connector/integrationcommand.png" alt="img" class="center-image" /></p>
+
+<h2 id="parsing-the-standard-output">Parsing the Standard Output</h2>
+
+<p>Another possibility is using the output of this command, to re-inject another event into ArcSight, this is done by using an additionalregex processor or a “second level parser”. These parsers have only a subset of the standard parser functionality and often need to be used in a slightly different way, for example if you have more than one additionalregex processor they are all used sequentially as a map file would be. This means you may need multiple files to fully parse your output into an event, this may seem inefficient but the throughput on commands executed is drastically lower than a standard connector handles.</p>
+
+<p>The following is a sample output from an Nmap command:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Standard Output:
+
+Starting Nmap 6.40 <span class="o">(</span> http://nmap.org <span class="o">)</span> at 2018-03-05 20:12 GMT
+Nmap scan report <span class="k">for </span>esm <span class="o">(</span>192.168.3.9<span class="o">)</span>
+Host is up <span class="o">(</span>0.000012s latency<span class="o">)</span><span class="nb">.</span>
+Not shown: 997 closed ports
+PORT     STATE SERVICE
+22/tcp   open  ssh
+8443/tcp open  https-alt
+9000/tcp open  cslistener
+MAC Address: 00:0C:29:A7:D8:F6 <span class="o">(</span>VMware<span class="o">)</span>
+
+Nmap <span class="k">done</span>: 1 IP address <span class="o">(</span>1 host up<span class="o">)</span> scanned <span class="k">in </span>0.04 seconds</code></pre></figure>
+
+<p>Additional regex processors should be placed in the following sub folder <code class="highlighter-rouge">/opt/arcsight/connectors/counteract/current/user/agent/fcp/additionalregexparsing/ngflexcounteract/</code> and have the name format <code class="highlighter-rouge">regex.0.sdkrfilereader.properties</code> where <code class="highlighter-rouge">0</code> is increased sequentially as needed.</p>
+
+<p>My files are regex.0.sdkrfilereader.properties:</p>
+<ul>
+  <li>Performs its parsing on event.rawEvent (the full Standard Output)</li>
+  <li>(?s) defines a multiline regex</li>
+  <li>This parser is looking for something unique in an Nmap message e.g “Starting Nmap”</li>
+  <li>The regex capture takes the entire message and puts it into deviceCustomString1</li>
+  <li>The regex also sets the deviceProduct to “Nmap” if the deviceCustomString1 is not null.</li>
+</ul>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">source.field<span class="o">=</span>event.rawEvent
+<span class="nv">regex</span><span class="o">=(</span>?s<span class="o">)(</span>.<span class="k">*</span>?Starting Nmap.<span class="k">*</span><span class="o">)</span>
+token.count<span class="o">=</span>1
+token[0].name<span class="o">=</span>NmapMessage
+event.deviceCustomString1<span class="o">=</span>NmapMessage
+event.deviceProduct<span class="o">=</span>__ifThenElse<span class="o">(</span>NmapMessage,,,__stringConstant<span class="o">(</span><span class="s2">"Nmap"</span><span class="o">))</span></code></pre></figure>
+
+<p>regex.1.sdkrfilereader.properties:</p>
+<ul>
+  <li>Captures whether or not the host is “up” or “down” and puts it in deviceCustomString3</li>
+</ul>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">source.field<span class="o">=</span>event.rawEvent
+<span class="nv">regex</span><span class="o">=(</span>?s<span class="o">)</span>.<span class="k">*</span>?Host is <span class="o">([</span>^<span class="se">\\</span>s]+<span class="o">)</span>.<span class="k">*</span>
+token.count<span class="o">=</span>1
+token[0].name<span class="o">=</span>HostStatus
+event.deviceCustomString3<span class="o">=</span>HostStatus</code></pre></figure>
+
+<p>regex.2.sdkrfilereader.properties</p>
+<ul>
+  <li>Captutes the targetted IP and Hostname</li>
+  <li>Note that __regexToken and other double underscore operators are availble</li>
+</ul>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">source.field<span class="o">=</span>event.rawEvent
+<span class="nv">regex</span><span class="o">=(</span>?s<span class="o">)</span>.<span class="k">*</span>?Nmap scan report <span class="k">for</span> <span class="o">([</span>^<span class="se">\\</span>s]+<span class="o">)</span> <span class="se">\\</span><span class="o">(([</span>^<span class="se">\\</span><span class="o">)]</span>+<span class="o">)</span><span class="se">\\</span><span class="o">)</span>.<span class="k">*</span>
+token.count<span class="o">=</span>1
+token[0].name<span class="o">=</span>DestinationHost
+token[1].name<span class="o">=</span>DestinationAddress
+event.destinationHostName<span class="o">=</span>DestinationHost
+event.destinationAddress<span class="o">=</span>__regexTokenAsAddress<span class="o">(</span>DestinationAddress,<span class="s2">"(.*)"</span><span class="o">)</span></code></pre></figure>
+
+<p>The end result of the configuration files and additional regex parsers is below, this output will be viewable by creating an ActiveChannel viewing your CounterACT connector events:<br />
+<img src="/assets/images/counteract-action-connector/parsedevent.png" alt="img" class="center-image" /></p>
+
+                    
+
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 hidden-xs">
+              <div class="sidebar ">
+  <h2>Recent Posts</h2>
+  <ul>
+    
+    <li><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></li>
+    
+    <li><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></li>
+    
+    <li><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></li>
+    
+    <li><a href="/2018/01/arcsight-api-activelists">ArcSight ESM API List, Read, Write, Delete ActiveList Entries</a></li>
+    
+    <li><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></li>
+    
+  </ul>
+</div>
+
+<div class="sidebar">
+  <h2>Tags</h2>
+  <ul class="sideBarTags">
+    
+    
+    <li>
+      <a href="/tag/api" data-toggle="tooltip" data-placement="right" title="1">
+        <span>api</span></a></li>
+    
+    <li>
+      <a href="/tag/arcsight" data-toggle="tooltip" data-placement="right" title="6">
+        <span>arcsight</span></a></li>
+    
+    <li>
+      <a href="/tag/categorization" data-toggle="tooltip" data-placement="right" title="1">
+        <span>categorization</span></a></li>
+    
+    <li>
+      <a href="/tag/cef" data-toggle="tooltip" data-placement="right" title="1">
+        <span>cef</span></a></li>
+    
+    <li>
+      <a href="/tag/counteract" data-toggle="tooltip" data-placement="right" title="1">
+        <span>counteract</span></a></li>
+    
+    <li>
+      <a href="/tag/flexconnector" data-toggle="tooltip" data-placement="right" title="4">
+        <span>flexconnector</span></a></li>
+    
+    <li>
+      <a href="/tag/installation" data-toggle="tooltip" data-placement="right" title="1">
+        <span>installation</span></a></li>
+    
+    <li>
+      <a href="/tag/json" data-toggle="tooltip" data-placement="right" title="1">
+        <span>json</span></a></li>
+    
+    <li>
+      <a href="/tag/ossec" data-toggle="tooltip" data-placement="right" title="2">
+        <span>ossec</span></a></li>
+    
+    <li>
+      <a href="/tag/pfsense" data-toggle="tooltip" data-placement="right" title="1">
+        <span>pfsense</span></a></li>
+    
+    <li>
+      <a href="/tag/squid" data-toggle="tooltip" data-placement="right" title="1">
+        <span>squid</span></a></li>
+    
+  </ul>
+</div>
+
+            </div>
+          </div>
+        </div>
+        
+
+      </div>
+          <footer class="footer-distributed">
+      <div class="container">
+        <div class="footer">
+          <h6>Follow me</h6>
+
+<ul class="social-media">
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <li>
+      <a title="feed.xml RSS" href="/feed.xml" target="_blank"><i class="fa fa-rss fa-2x"></i></a>
+    </li>
+  
+
+</ul>
+
+	  <p><a href="https://github.com/streetturtle/jekyll-clean-dark">Template</a> by Pavel Makhov &copy; 2015-2017</p>
+        </div>
+      </div>
+    </footer>
+
+    </div>
+  </body>
+</html>

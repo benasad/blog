@@ -1,0 +1,24 @@
+event.deviceEventClassId,set.event.categoryObject,set.event.categoryBehavior,set.event.categoryTechnique,set.event.categoryDeviceGroup,set.event.categorySignificance,set.event.categoryOutcome
+503,/Host/Application/Service,/Execute/Start,,/Application,/Informational,/Success
+504,/Host/Application/Service,/Execute/Stop,,/Application,/Informational/Error,/Success
+516,/Host/Operating System,/Found/Misconfigured,,/Assessment Tool,/Informational/Alert,/Failure
+533,/Host/Operating System,/Modify,,/Operating System,/Informational/Warning,/Success
+550,/Host/Resource/File,/Modify,,/IDS/Host,/Suspicious,/Success
+5501,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Success
+5503,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Failure
+5504,/Host/Operating System,/Authentication/Verify,,/Operating System,/Suspicious,/Attempt
+554,/Host/Resource/File,/Create,,/IDS/Host,/Informational,/Success
+2932,/Host/Resource/File,/Create,,/Operating System,/Informational,/Success
+2933,/Host/Resource/File,/Modify,,/Operating System,/Informational,/Success
+3333,/Host/Application/Service,/Execute/Stop,,/Application,/Informational/Error,/Success
+3334,/Host/Application/Service,/Execute/Start,,/Application,/Informational,/Success
+5303,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Success
+5304,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Success
+5402,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Success
+5715,/Host/Operating System,/Authentication/Verify,,/Operating System,/Informational,/Success
+11301,/Host/Application,/Communicate/Query,,/Application,/Informational,/Success
+11305,/Host/Resource/File,/Access,,/Application,/Informational/Alert,/Attempt
+11307,/Host/Application,/Communicate/Query,,/Application,/Suspicious,/Success
+11309,/Host/Application,/Authentication/Verify,,/Application,/Informational,/Success
+81801,/Host/Application,/Authentication/Verify,,/Application,/Informational,/Success
+700001,/Host/Resource/File,/Found,,/Operating System,/Informational/Alert,/Success

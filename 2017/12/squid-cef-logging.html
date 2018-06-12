@@ -1,0 +1,603 @@
+
+  
+
+
+
+
+
+
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BASEC Blog | ArcSight Squid CEF Integration </title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/bootstrap.min.js"></script>
+  <script src="/assets/js/header.js"></script>
+  <script src="/assets/js/toc.js"></script>
+  <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/theme.css" rel="stylesheet">
+  <link href="/assets/css/syntax.css" rel="stylesheet">
+  <link href="/assets/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  
+
+  
+
+
+ <script type="text/javascript">
+  WebFontConfig = {
+    google: {
+      families: ['Ubuntu::latin']
+    }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+      '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+    wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">BASEC Blog</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/">/home</a></li>
+          <li><a href="/archive.html">/archive</a></li>
+          <li><a href="/tags.html">/tags</a></li>
+          <li><a href="/about.html">/about</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="wrapper">
+      <div class="content">
+        <div class="container container-center">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="article">
+                <div class="well">
+                  <h1><a href="/2017/12/squid-cef-logging">ArcSight Squid CEF Integration</a></h1>
+                  <div class="post-meta">
+                    <div class="post-time">
+                      <i class="fa fa-calendar"></i>
+                      <time>22 Dec 2017</time>
+                    </div>
+                    <ul>
+                      
+                        <li><a href="/tag/installation">installation</a></li>
+                      
+                        <li><a href="/tag/squid">squid</a></li>
+                      
+                        <li><a href="/tag/arcsight">arcsight</a></li>
+                      
+                        <li><a href="/tag/cef">cef</a></li>
+                      
+                    </ul>
+                  </div>
+                  <div class="post-content">
+                    <div id="toc" class="toc"></div>
+                    <h2 id="installation">Installation</h2>
+
+<p>This assumes you’re installing squid on Centos 7.<br />
+Update the packages:<br />
+<code class="highlighter-rouge">yum -y update</code><br />
+Install squid using from the yum repository:<br />
+<code class="highlighter-rouge">yum -y install squid</code></p>
+
+<h2 id="basic-configuration">Basic Configuration</h2>
+
+<p>Squid is installed with a default configuration and can be used immediately, albeit with reduced functionality. The following commands can be used to control squid.</p>
+
+<p>Check the version number:<br />
+<code class="highlighter-rouge">squid -v</code><br />
+Configure Squid to start on boot:<br />
+<code class="highlighter-rouge">systemctl enable squid</code><br />
+Start Squid:<br />
+<code class="highlighter-rouge">systemctl start squid</code><br />
+Check the status of Squid:<br />
+<code class="highlighter-rouge">systemctl status squid</code><br />
+Check the squid port is listening - by default 3128/tcp:<br />
+<code class="highlighter-rouge">ss -ln</code><br />
+Stop squid:<br />
+<code class="highlighter-rouge">systemctl stop squid</code></p>
+
+<p>By default Squid does not cache any content, this can be enabled by uncommenting one line in the squid configuration file, modify <code class="highlighter-rouge">/etc/squid/squid.conf</code> and uncomment the following line:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">cache_dir ufs /var/spool/squid 100 16 256</code></pre></figure>
+
+<h2 id="https-configuration">HTTPS Configuration</h2>
+
+<p>Initialise the Squid ssl_db directory, type this into the console:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">/usr/lib64/squid/ssl_crtd <span class="nt">-c</span> <span class="nt">-s</span> /var/lib/ssl_db
+chown <span class="nt">-R</span> squid:squid /var/lib/ssl_db</code></pre></figure>
+
+<p>Create the certificate folder and generate the certificates:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">mkdir /etc/squid/ssl_cert
+chown <span class="nt">-R</span> squid.squid /etc/squid/ssl_cert
+<span class="nb">cd</span> /etc/squid/ssl_cert
+openssl req <span class="nt">-new</span> <span class="nt">-newkey</span> rsa:1024 <span class="nt">-days</span> 1365 <span class="nt">-nodes</span> <span class="nt">-x509</span> <span class="nt">-keyout</span> myca.pem <span class="nt">-out</span> myca.pem <span class="c"># for the server</span>
+openssl x509 <span class="nt">-in</span> myca.pem <span class="nt">-outform</span> DER <span class="nt">-out</span> myca.der <span class="c"># for the client</span>
+chown <span class="nt">-R</span> squid.squid /etc/squid/ssl_cert</code></pre></figure>
+
+<p>Configure the <code class="highlighter-rouge">/etc/squid/squid.conf</code> file to intercept HTTPS. Below is an example of the default squid.conf modified with the minimum changes required to make this work:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="c">#</span>
+<span class="c"># Recommended minimum configuration:</span>
+<span class="c">#</span>
+
+<span class="c"># Example rule allowing access from your local networks.</span>
+<span class="c"># Adapt to list your (internal) IP networks from where browsing</span>
+<span class="c"># should be allowed</span>
+acl localnet src 10.0.0.0/8     <span class="c"># RFC1918 possible internal network</span>
+acl localnet src 172.16.0.0/12  <span class="c"># RFC1918 possible internal network</span>
+acl localnet src 192.168.0.0/16 <span class="c"># RFC1918 possible internal network</span>
+acl localnet src fc00::/7       <span class="c"># RFC 4193 local private network range</span>
+acl localnet src fe80::/10      <span class="c"># RFC 4291 link-local (directly plugged) machines</span>
+
+acl SSL_ports port 443
+acl Safe_ports port 80          <span class="c"># http</span>
+acl Safe_ports port 21          <span class="c"># ftp</span>
+acl Safe_ports port 443         <span class="c"># https</span>
+acl Safe_ports port 70          <span class="c"># gopher</span>
+acl Safe_ports port 210         <span class="c"># wais</span>
+acl Safe_ports port 1025-65535  <span class="c"># unregistered ports</span>
+acl Safe_ports port 280         <span class="c"># http-mgmt</span>
+acl Safe_ports port 488         <span class="c"># gss-http</span>
+acl Safe_ports port 591         <span class="c"># filemaker</span>
+acl Safe_ports port 777         <span class="c"># multiling http</span>
+acl CONNECT method CONNECT
+
+<span class="c">#</span>
+<span class="c"># Recommended minimum Access Permission configuration:</span>
+<span class="c">#</span>
+<span class="c"># Deny requests to certain unsafe ports</span>
+http_access deny <span class="o">!</span>Safe_ports
+
+<span class="c"># Deny CONNECT to other than secure SSL ports</span>
+http_access deny CONNECT <span class="o">!</span>SSL_ports
+
+<span class="c"># Only allow cachemgr access from localhost</span>
+http_access allow localhost manager
+http_access deny manager
+
+<span class="c"># We strongly recommend the following be uncommented to protect innocent</span>
+<span class="c"># web applications running on the proxy server who think the only</span>
+<span class="c"># one who can access services on "localhost" is a local user</span>
+<span class="c">#http_access deny to_localhost</span>
+
+<span class="c">#</span>
+<span class="c"># INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS</span>
+<span class="c">#</span>
+
+<span class="c"># Example rule allowing access from your local networks.</span>
+<span class="c"># Adapt localnet in the ACL section to list your (internal) IP networks</span>
+<span class="c"># from where browsing should be allowed</span>
+http_access allow localnet
+http_access allow localhost
+
+<span class="c"># And finally deny all other access to this proxy</span>
+http_access deny all
+
+<span class="c"># Squid normally listens to port 3128</span>
+http_port 3128 ssl-bump <span class="nv">cert</span><span class="o">=</span>/etc/squid/ssl_cert/myca.pem generate-host-certificates<span class="o">=</span>on <span class="nv">dynamic_cert_mem_cache_size</span><span class="o">=</span>4MB
+
+sslcrtd_program /usr/lib64/squid/ssl_crtd <span class="nt">-s</span> /var/lib/ssl_db <span class="nt">-M</span> 4MB
+
+acl step1 at_step SslBump1
+
+ssl_bump peek step1
+ssl_bump bump all
+
+<span class="c"># Uncomment and adjust the following to add a disk cache directory.</span>
+cache_dir ufs /var/spool/squid 100 16 256
+
+<span class="c"># Leave coredumps in the first cache dir</span>
+coredump_dir /var/spool/squid
+
+<span class="c">#</span>
+<span class="c"># Add any of your own refresh_pattern entries above these.</span>
+<span class="c">#</span>
+refresh_pattern ^ftp:           1440    20%     10080
+refresh_pattern ^gopher:        1440    0%      1440
+refresh_pattern <span class="nt">-i</span> <span class="o">(</span>/cgi-bin/|<span class="se">\?</span><span class="o">)</span> 0     0%      0
+refresh_pattern <span class="nb">.</span>               0       20%     4320</code></pre></figure>
+
+<p>You will now need to distribute the client certificate to any client which will be communicating through the proxy over HTTPS.</p>
+
+<p>If you attempt to start squid again you may get the following error:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">Dec 17 13:21:47 squid.basec.internal systemd[1]: squid.service: main process exited, <span class="nv">code</span><span class="o">=</span>exited, <span class="nv">status</span><span class="o">=</span>1/FAILURE
+Dec 17 13:21:47 squid.basec.internal systemd[1]: Unit squid.service entered failed state.
+Dec 17 13:21:47 squid.basec.internal systemd[1]: squid.service failed.</code></pre></figure>
+
+<p>Or you may see the following in /var/log/squid/cache.log:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">2017/12/17 13:21:47 kid1| WARNING: ssl_crtd <span class="c">#Hlpr1 exited</span>
+2017/12/17 13:21:47 kid1| Too few ssl_crtd processes are running <span class="o">(</span>need 1/32<span class="o">)</span>
+2017/12/17 13:21:47 kid1| Closing HTTP port <span class="o">[</span>::]:3128
+2017/12/17 13:21:47 kid1| storeDirWriteCleanLogs: Starting...
+2017/12/17 13:21:47 kid1|   Finished.  Wrote 0 entries.
+2017/12/17 13:21:47 kid1|   Took 0.00 seconds <span class="o">(</span>  0.00 entries/sec<span class="o">)</span><span class="nb">.</span>
+FATAL: The ssl_crtd helpers are crashing too rapidly, need <span class="nb">help</span><span class="o">!</span></code></pre></figure>
+
+<p>This is because of SELinux running on the host, looking in the /var/log/audit/audit.log we see:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">type</span><span class="o">=</span>SYSCALL <span class="nv">msg</span><span class="o">=</span>audit<span class="o">(</span>1513517576.892:1677<span class="o">)</span>: <span class="nv">arch</span><span class="o">=</span>c000003e <span class="nv">syscall</span><span class="o">=</span>2 <span class="nv">success</span><span class="o">=</span>no <span class="nb">exit</span><span class="o">=</span><span class="nt">-13</span> <span class="nv">a0</span><span class="o">=</span>7f62d11402b8 <span class="nv">a1</span><span class="o">=</span>0 <span class="nv">a2</span><span class="o">=</span>1b6 <span class="nv">a3</span><span class="o">=</span>24 <span class="nv">items</span><span class="o">=</span>0 <span class="nv">ppid</span><span class="o">=</span>52660 <span class="nv">pid</span><span class="o">=</span>52664 <span class="nv">auid</span><span class="o">=</span>4294967295 <span class="nv">uid</span><span class="o">=</span>23 <span class="nv">gid</span><span class="o">=</span>23 <span class="nv">euid</span><span class="o">=</span>23 <span class="nv">suid</span><span class="o">=</span>23 <span class="nv">fsuid</span><span class="o">=</span>23 <span class="nv">egid</span><span class="o">=</span>23 <span class="nv">sgid</span><span class="o">=</span>23 <span class="nv">fsgid</span><span class="o">=</span>23 <span class="nv">tty</span><span class="o">=(</span>none<span class="o">)</span> <span class="nv">ses</span><span class="o">=</span>4294967295 <span class="nv">comm</span><span class="o">=</span><span class="s2">"ssl_crtd"</span> <span class="nv">exe</span><span class="o">=</span><span class="s2">"/usr/lib64/squid/ssl_crtd"</span> <span class="nv">subj</span><span class="o">=</span>system_u:system_r:squid_t:s0 <span class="nv">key</span><span class="o">=(</span>null<span class="o">)</span>
+<span class="nb">type</span><span class="o">=</span>AVC <span class="nv">msg</span><span class="o">=</span>audit<span class="o">(</span>1513517576.895:1678<span class="o">)</span>: avc:  denied  <span class="o">{</span> <span class="nb">read</span> <span class="o">}</span> <span class="k">for  </span><span class="nv">pid</span><span class="o">=</span>52665 <span class="nv">comm</span><span class="o">=</span><span class="s2">"ssl_crtd"</span> <span class="nv">name</span><span class="o">=</span><span class="s2">"index.txt"</span> <span class="nv">dev</span><span class="o">=</span><span class="s2">"dm-0"</span> <span class="nv">ino</span><span class="o">=</span>67366007 <span class="nv">scontext</span><span class="o">=</span>system_u:system_r:squid_t:s0 <span class="nv">tcontext</span><span class="o">=</span>unconfined_u:object_r:var_lib_t:s0 <span class="nv">tclass</span><span class="o">=</span>file
+<span class="nb">type</span><span class="o">=</span>SYSCALL <span class="nv">msg</span><span class="o">=</span>audit<span class="o">(</span>1513517576.895:1678<span class="o">)</span>: <span class="nv">arch</span><span class="o">=</span>c000003e <span class="nv">syscall</span><span class="o">=</span>2 <span class="nv">success</span><span class="o">=</span>no <span class="nb">exit</span><span class="o">=</span><span class="nt">-13</span> <span class="nv">a0</span><span class="o">=</span>7fdecb2932b8 <span class="nv">a1</span><span class="o">=</span>0 <span class="nv">a2</span><span class="o">=</span>1b6 <span class="nv">a3</span><span class="o">=</span>24 <span class="nv">items</span><span class="o">=</span>0 <span class="nv">ppid</span><span class="o">=</span>52660 <span class="nv">pid</span><span class="o">=</span>52665 <span class="nv">auid</span><span class="o">=</span>4294967295 <span class="nv">uid</span><span class="o">=</span>23 <span class="nv">gid</span><span class="o">=</span>23 <span class="nv">euid</span><span class="o">=</span>23 <span class="nv">suid</span><span class="o">=</span>23 <span class="nv">fsuid</span><span class="o">=</span>23 <span class="nv">egid</span><span class="o">=</span>23 <span class="nv">sgid</span><span class="o">=</span>23 <span class="nv">fsgid</span><span class="o">=</span>23 <span class="nv">tty</span><span class="o">=(</span>none<span class="o">)</span> <span class="nv">ses</span><span class="o">=</span>4294967295 <span class="nv">comm</span><span class="o">=</span><span class="s2">"ssl_crtd"</span> <span class="nv">exe</span><span class="o">=</span><span class="s2">"/usr/lib64/squid/ssl_crtd"</span> <span class="nv">subj</span><span class="o">=</span>system_u:system_r:squid_t:s0 <span class="nv">key</span><span class="o">=(</span>null<span class="o">)</span></code></pre></figure>
+
+<p>In a lab environment it should be acceptible to simply put SELinux in permissive mode by modifying /etc/selinux/config and issuing the <code class="highlighter-rouge">setenforce 0</code> command.</p>
+
+<h2 id="cef-logging-configuration">CEF Logging Configuration</h2>
+
+<p>By default the ArcSight SmartConnector framework will parse Squid logs in the default format, this provides a good amount of information, but with some additional configuration we can provide more detailed information in CEF format. This reduces the processing overhead on the ArcSight SmartConnector and provides more event data for analysts and/or content development.</p>
+
+<table class="mbtablestyle">
+  <thead>
+    <tr>
+      <th>ESM Field</th>
+      <th>CEF Field</th>
+      <th>Format Code</th>
+      <th>Meaning</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: center">CEF</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>bytesOut</td>
+      <td>out</td>
+      <td>%&lt;st</td>
+      <td>Squid ResponseSize to Client</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>destinationHostName</td>
+      <td>dhost</td>
+      <td>%&lt;A</td>
+      <td>Server IP address or HostName</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>destinationUserName</td>
+      <td>duser</td>
+      <td>%un</td>
+      <td>User Name</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceCustomNumber1</td>
+      <td>cn1</td>
+      <td>%tr</td>
+      <td>Response time (milliseconds)</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceCustomString1</td>
+      <td>cs1</td>
+      <td>%Sh</td>
+      <td>Squid hierarchy status (DEFAULT_PARENT, etc.)</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceEventClassId</td>
+      <td>CEFHeader</td>
+      <td>%&gt;Hs</td>
+      <td>HTTP status code sent to the client</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceProduct</td>
+      <td>CEFHeader</td>
+      <td>“Squid Web Proxy Server”</td>
+      <td>n/a</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceReceiptTime</td>
+      <td>rt</td>
+      <td>%ts%03tu</td>
+      <td>Milliseconds since epoch</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceSeverity</td>
+      <td>deviceSeverity</td>
+      <td>%Hs</td>
+      <td>HTTP status code sent to the client</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceVendor</td>
+      <td>CEFHeader</td>
+      <td>“Squid”</td>
+      <td>n/a</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>fileType</td>
+      <td>fileType</td>
+      <td>%mt</td>
+      <td>MIME Content Type</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>name</td>
+      <td>CEFHeader</td>
+      <td>%Ss</td>
+      <td>Squid request status (TCP_MISS etc)</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>requestMethod</td>
+      <td>requestMethod</td>
+      <td>%rm</td>
+      <td>Request Method (GET/POST, etc)</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>requestUrl</td>
+      <td>request</td>
+      <td>%ru</td>
+      <td>Request URL</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>sourceAddress</td>
+      <td>src</td>
+      <td>%&gt;a</td>
+      <td>Client Source Address</td>
+      <td style="text-align: center">X</td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>sourceHostName</td>
+      <td>shost</td>
+      <td>%&gt;A</td>
+      <td>Client IP address or HostName</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>sourcePort</td>
+      <td>spt</td>
+      <td>%&gt;p</td>
+      <td>Client Port</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>destinationAddress</td>
+      <td>dst</td>
+      <td>%&lt;a</td>
+      <td>Server IP address</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>destinationPort</td>
+      <td>dpt</td>
+      <td>%&lt;p</td>
+      <td>Server Port</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>bytesIn</td>
+      <td>in</td>
+      <td>%&gt;st</td>
+      <td>RequestSize from Client</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>deviceCustomString2</td>
+      <td>cs2</td>
+      <td>%{Referer}&gt;h</td>
+      <td>Referer</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+    <tr>
+      <td>requestClientApplication</td>
+      <td>requestClient</td>
+      <td>%{User-Agent}&gt;h</td>
+      <td>Request Application</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">X</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="cef-header">CEF Header</h3>
+
+<p>The ArcSight CEF Configuration guide defines the CEF Header as follows:</p>
+<blockquote>
+  <p>CEF:Version|Device Vendor|Device Product|Device Version|Device Event Class ID|Name|Severity|[Extension]</p>
+
+  <p>Version is an integer and identifies the version of the CEF format. Event consumers use this<br />
+information to determine what the following fields represent. The current CEF version is 0 ( CEF:0 ).</p>
+
+  <p>Severity is a string or integer and reflects the importance of the event. The valid string values are<br />
+Unknown, Low, Medium, High, and Very-High. The valid integer values are 0-3=Low, 4-6=Medium,<br />
+7- 8=High, and 9-10=Very-High.</p>
+</blockquote>
+
+<p>For our configuration the following CEF Header will be suitable:</p>
+
+<p>CEF:0|Squid|Squid Web Proxy Server|3.5|%&gt;Hs|%Ss|3|</p>
+
+<p>Including the key value pairs from table above our full configuration added to the bottom of the squid.conf file this looks like:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">logformat CEF CEF:0|Squid|Squid Web Proxy Server|3.5|%&gt;Hs|%Ss|3|out<span class="o">=</span>%&lt;st <span class="nv">dhost</span><span class="o">=</span>%&lt;A <span class="nv">duser</span><span class="o">=</span>%un <span class="nv">cn1</span><span class="o">=</span>%tr <span class="nv">cs1</span><span class="o">=</span>%Sh <span class="nv">rt</span><span class="o">=</span>%ts%03tu <span class="nv">deviceSeverity</span><span class="o">=</span>%Hs <span class="nv">fileType</span><span class="o">=</span>%mt <span class="nv">requestMethod</span><span class="o">=</span>%rm <span class="nv">request</span><span class="o">=</span>%ru <span class="nv">src</span><span class="o">=</span>%&gt;a <span class="nv">shost</span><span class="o">=</span>%&gt;A <span class="nv">spt</span><span class="o">=</span>%&gt;p <span class="nv">dst</span><span class="o">=</span>%&lt;a <span class="nv">dpt</span><span class="o">=</span>%&lt;p <span class="k">in</span><span class="o">=</span>%&gt;st <span class="nv">cs2</span><span class="o">=</span>%<span class="o">{</span>Referer<span class="o">}&gt;</span>h <span class="nv">requestClientApplication</span><span class="o">=</span>%<span class="o">{</span>User-Agent<span class="o">}&gt;</span>h <span class="nv">cs1Label</span><span class="o">=</span>Hierarchy Status <span class="nv">cs2Label</span><span class="o">=</span>Referer <span class="nv">cn1Label</span><span class="o">=</span>Response Time
+access_log daemon:/var/log/squid/access.log CEF</code></pre></figure>
+
+<p>This will change the log format of the access logs to CEF a sample is provided below:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">CEF:0|Squid|Squid Web Proxy Server|3.5|200|TCP_MISS|3|out<span class="o">=</span>72545 <span class="nv">dhost</span><span class="o">=</span>- <span class="nv">duser</span><span class="o">=</span>- <span class="nv">cn1</span><span class="o">=</span>718 <span class="nv">cs1</span><span class="o">=</span>HIER_DIRECT <span class="nv">rt</span><span class="o">=</span>1513954994458 <span class="nv">deviceSeverity</span><span class="o">=</span>200 <span class="nv">fileType</span><span class="o">=</span>text/html <span class="nv">requestMethod</span><span class="o">=</span>GET <span class="nv">request</span><span class="o">=</span>https://www.microfocus.com/ <span class="nv">src</span><span class="o">=</span>192.168.2.108 <span class="nv">shost</span><span class="o">=</span>192.168.2.108 <span class="nv">spt</span><span class="o">=</span>34820 <span class="nv">dst</span><span class="o">=</span>130.57.66.9 <span class="nv">dpt</span><span class="o">=</span>443 <span class="k">in</span><span class="o">=</span>720 <span class="nv">cs2</span><span class="o">=</span>https://www.google.co.uk/ <span class="nv">requestClientApplication</span><span class="o">=</span>Mozilla/5.0%20<span class="o">(</span>X11<span class="p">;</span>%20Fedora<span class="p">;</span>%20Linux%20x86_64<span class="p">;</span>%20rv:57.0<span class="o">)</span>%20Gecko/20100101%20Firefox/57.0 <span class="nv">cs1Label</span><span class="o">=</span>Hierarchy Status <span class="nv">cs2Label</span><span class="o">=</span>Referer <span class="nv">cn1Label</span><span class="o">=</span>Response Time</code></pre></figure>
+
+<p>To send the CEF logs to a TCP Syslog receiver the following configuration line should be added to the end of the <code class="highlighter-rouge">/etc/squid/squid.conf</code> file:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">access_log tcp://192.168.3.8:1514 CEF</code></pre></figure>
+
+<p><img src="/assets/images/squid-cef-logging/squidActiveChannel.jpg" alt="img" class="center-image" /><br />
+<img src="/assets/images/squid-cef-logging/squidCategorization.jpg" alt="img" class="center-image" /></p>
+
+<p>As you can see - we now have a more detailed log being provided from the Squid Proxy Server, we do not have to do any parsing on the SmartConnector, and the existing Categorization files are still in effect because the deviceVendor/deviceProduct and deviceEventClassId are all maintained from the original configuration.</p>
+
+<blockquote class="note">
+  <p>Note by default for user privacy the Squid Proxy does not log query terms in the requestUrl, to prevent it from stripping these query terms the configuration option <code class="highlighter-rouge">strip_query_terms off</code> should be added anywhere in the squid.conf file</p>
+</blockquote>
+
+                    
+
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 hidden-xs">
+              <div class="sidebar ">
+  <h2>Recent Posts</h2>
+  <ul>
+    
+    <li><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></li>
+    
+    <li><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></li>
+    
+    <li><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></li>
+    
+    <li><a href="/2018/01/arcsight-api-activelists">ArcSight ESM API List, Read, Write, Delete ActiveList Entries</a></li>
+    
+    <li><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></li>
+    
+  </ul>
+</div>
+
+<div class="sidebar">
+  <h2>Tags</h2>
+  <ul class="sideBarTags">
+    
+    
+    <li>
+      <a href="/tag/api" data-toggle="tooltip" data-placement="right" title="1">
+        <span>api</span></a></li>
+    
+    <li>
+      <a href="/tag/arcsight" data-toggle="tooltip" data-placement="right" title="6">
+        <span>arcsight</span></a></li>
+    
+    <li>
+      <a href="/tag/categorization" data-toggle="tooltip" data-placement="right" title="1">
+        <span>categorization</span></a></li>
+    
+    <li>
+      <a href="/tag/cef" data-toggle="tooltip" data-placement="right" title="1">
+        <span>cef</span></a></li>
+    
+    <li>
+      <a href="/tag/counteract" data-toggle="tooltip" data-placement="right" title="1">
+        <span>counteract</span></a></li>
+    
+    <li>
+      <a href="/tag/flexconnector" data-toggle="tooltip" data-placement="right" title="4">
+        <span>flexconnector</span></a></li>
+    
+    <li>
+      <a href="/tag/installation" data-toggle="tooltip" data-placement="right" title="1">
+        <span>installation</span></a></li>
+    
+    <li>
+      <a href="/tag/json" data-toggle="tooltip" data-placement="right" title="1">
+        <span>json</span></a></li>
+    
+    <li>
+      <a href="/tag/ossec" data-toggle="tooltip" data-placement="right" title="2">
+        <span>ossec</span></a></li>
+    
+    <li>
+      <a href="/tag/pfsense" data-toggle="tooltip" data-placement="right" title="1">
+        <span>pfsense</span></a></li>
+    
+    <li>
+      <a href="/tag/squid" data-toggle="tooltip" data-placement="right" title="1">
+        <span>squid</span></a></li>
+    
+  </ul>
+</div>
+
+            </div>
+          </div>
+        </div>
+        
+
+      </div>
+          <footer class="footer-distributed">
+      <div class="container">
+        <div class="footer">
+          <h6>Follow me</h6>
+
+<ul class="social-media">
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <li>
+      <a title="feed.xml RSS" href="/feed.xml" target="_blank"><i class="fa fa-rss fa-2x"></i></a>
+    </li>
+  
+
+</ul>
+
+	  <p><a href="https://github.com/streetturtle/jekyll-clean-dark">Template</a> by Pavel Makhov &copy; 2015-2017</p>
+        </div>
+      </div>
+    </footer>
+
+    </div>
+  </body>
+</html>

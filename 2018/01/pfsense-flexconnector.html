@@ -1,0 +1,450 @@
+
+  
+
+
+
+
+
+
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BASEC Blog | ArcSight FlexConnector pfSense filterlog </title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/bootstrap.min.js"></script>
+  <script src="/assets/js/header.js"></script>
+  <script src="/assets/js/toc.js"></script>
+  <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/theme.css" rel="stylesheet">
+  <link href="/assets/css/syntax.css" rel="stylesheet">
+  <link href="/assets/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  
+
+  
+
+
+ <script type="text/javascript">
+  WebFontConfig = {
+    google: {
+      families: ['Ubuntu::latin']
+    }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+      '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+    wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">BASEC Blog</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/">/home</a></li>
+          <li><a href="/archive.html">/archive</a></li>
+          <li><a href="/tags.html">/tags</a></li>
+          <li><a href="/about.html">/about</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="wrapper">
+      <div class="content">
+        <div class="container container-center">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="article">
+                <div class="well">
+                  <h1><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></h1>
+                  <div class="post-meta">
+                    <div class="post-time">
+                      <i class="fa fa-calendar"></i>
+                      <time>10 Jan 2018</time>
+                    </div>
+                    <ul>
+                      
+                        <li><a href="/tag/pfsense">pfsense</a></li>
+                      
+                        <li><a href="/tag/arcsight">arcsight</a></li>
+                      
+                        <li><a href="/tag/flexconnector">flexconnector</a></li>
+                      
+                    </ul>
+                  </div>
+                  <div class="post-content">
+                    <div id="toc" class="toc"></div>
+                    <h2 id="introduction">Introduction</h2>
+
+<p>Here is a quick tutorial on how to write a syslog FlexConnector using the ArcSight SmartConnector framework. As a sample I am using the logs generated from the Open Source pfSense firewall filter logs. We will cover the basics but also include some best practices and finish with creating categorization for the events, these will be made to follow the standard set by other firewalls already parsed by the ArcSight SmartConnector framework.</p>
+
+<h2 id="understanding-the-log-format">Understanding The Log Format</h2>
+
+<p>PfSense provide a nice description of their filter log format and it can be easily configured to send this to a syslog receiver, the log format is essentially a string of comma separated values which change depending on the log format.</p>
+
+<p>The page describing the Filter Log Format can be found here - <a href="https://doc.pfsense.org/index.php/Filter_Log_Format_for_pfSense_2.2">Filter_Log_Format_for_pfSense_2.2</a></p>
+
+<p><b>There are a set of common fields:</b></p>
+<ul>
+  <li>Rule Number</li>
+  <li>Sub rule number</li>
+  <li>Anchor</li>
+  <li>Tracker - unique ID per rule, tracker ID is stored with the rule in config.xml for user added rules, or check /tmp/rules.debug</li>
+  <li>Real interface (e.g. em0)</li>
+  <li>Reason for the log entry (e.g. match)</li>
+  <li>Action taken that resulted in the log entry (e.g. block, pass)</li>
+  <li>Direction of the traffic (in/out)</li>
+  <li>IP version (4 for IPv4, 6 for IPv6)</li>
+</ul>
+
+<p><b>Messages are then split into either IPv4 or IPv6:</b><br />
+<b>IPv4:</b></p>
+<ul>
+  <li>TOS</li>
+  <li>ECN</li>
+  <li>TTL</li>
+  <li>ID</li>
+  <li>Offset</li>
+  <li>Flags</li>
+  <li>Protocol ID</li>
+  <li>Protocol text (tcp, udp, etc)</li>
+</ul>
+
+<p><b>IPv6:</b></p>
+<ul>
+  <li>Class</li>
+  <li>Flow Label</li>
+  <li>Hop Limit</li>
+  <li>Protocol</li>
+  <li>Protocol ID</li>
+</ul>
+
+<p><b>IPv4 or IPv6:</b></p>
+<ul>
+  <li>Length</li>
+  <li>Source IP</li>
+  <li>Destination IP</li>
+</ul>
+
+<p><b>For IPv4 or IPv6 there is then UDP, TCP, or ICMP submessages types:</b><br />
+<b>For TCP and UDP (Proto ID 6 or 17) on IPv4 or IPv6</b></p>
+<ul>
+  <li>Source Port</li>
+  <li>Destination Port</li>
+  <li>Data Length</li>
+</ul>
+
+<p><b>TCP Only:</b></p>
+<ul>
+  <li>TCP Flags</li>
+  <li>Sequence Number</li>
+  <li>ACK</li>
+  <li>Window</li>
+  <li>URG</li>
+  <li>Options</li>
+</ul>
+
+<p><b>ICMP:</b></p>
+<ul>
+  <li>ICMP Type, used to choose between the following possibilities</li>
+</ul>
+
+<p>Below are a few sample logs of differing formats:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">&lt;134&gt;Jan  9 19:18:35 filterlog: 79,,,1000002761,em0,match,pass,out,4,0xb8,,64,58172,0,none,17,udp,76,10.0.2.15,212.71.248.69,123,123,56
+&lt;134&gt;Jan 10 20:55:48 filterlog: 5,,,1000000103,em1,match,block,in,4,0x0,,128,18531,0,none,17,udp,106,192.168.2.104,192.168.64.13,62233,161,86
+&lt;134&gt;Jan 10 20:56:14 filterlog: 5,,,1000000103,em2,match,block,in,4,0x0,,64,268,0,DF,6,tcp,60,192.168.3.2,192.168.4.2,848,111,0,S,2309590424,,65535,,mss<span class="p">;</span>nop<span class="p">;</span>wscale<span class="p">;</span>sackOK<span class="p">;</span>TS
+&lt;134&gt;Jan  9 19:09:14 filterlog: 77,,,1000002665,em0,match,pass,out,4,0x0,,64,23092,0,none,1,icmp,28,10.0.2.15,10.0.2.2,request,20177,08
+&lt;134&gt;Jan  9 19:17:54 filterlog: 35,,,1000000112,lo0,match,pass,in,6,0x00,0x00000,255,ICMPv6,58,136,fe80::1:1,ff02::1,</code></pre></figure>
+
+<p>We can see the “common field” portion of each log type below:<br />
+<code class="highlighter-rouge">filterlog: 79,,,1000002761,em0,match,pass,out</code><br />
+<code class="highlighter-rouge">filterlog: 5,,,1000000103,em1,match,block,in</code><br />
+<code class="highlighter-rouge">filterlog: 5,,,1000000103,em2,match,block,in</code><br />
+<code class="highlighter-rouge">filterlog: 77,,,1000002665,em0,match,pass,out</code><br />
+<code class="highlighter-rouge">filterlog: 35,,,1000000112,lo0,match,pass,in</code></p>
+
+<h2 id="writing-the-flexconnector-parser">Writing the FlexConnector Parser</h2>
+
+<p>Although this file is predominantly made up of comma separated values it will actually serve us better to use a regex processor which opens up the ability to have different sub-message formats to account for the non-common csv fields.</p>
+
+<p>I have attached the finished parser with comments, as it’s probably a good idea to see the full structure before I attempt to break it out and describe its individual sections. <ATTACH HERE=""></ATTACH></p>
+
+<p><a href="/assets/files/pfsense-flexconnector/pfsense.subagent.sdkrfilereader.properties">pfsense.subagent.sdkrfilereader.properties</a></p>
+
+<p>Because we have an idea of the set of common csv fields, it is a good starting point to create the initial regex and begin tokenizing this regex into known fields. The initial regex must be unique enough to ensure we capture the pfSense logs, but not any other logs which may also be sent to the syslog connector.</p>
+
+<p>A sensible looking regex to capture this would be <code class="highlighter-rouge">filterlog*\\\:\\s([^,]*)\\,([^,]*)\\,([^,]*)\\,([^,]*)\\,([^,]*)\\,(match)\\,([^,]*)\\,([^,]*)\\,([^,]*)\\,(.*)</code></p>
+
+<p>We are using a catch all at the end of the regex for the section of the message which will vary depending on Transport Protocol and IP version. This will be passed off to a sub-message which will be discussed later.</p>
+
+<p>As we have a good description of the pfSense log format we can use this to tokenize each of the extracted fields in the parser, I have tokenized these as follows:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">token.count<span class="o">=</span>10
+
+token[0].name<span class="o">=</span>RuleNumber
+token[0].type<span class="o">=</span>Long
+
+token[1].name<span class="o">=</span>SubRuleNumber
+token[1].type<span class="o">=</span>String
+
+token[2].name<span class="o">=</span>AnchorText
+token[2].type<span class="o">=</span>String
+
+token[3].name<span class="o">=</span>Tracker
+token[3].type<span class="o">=</span>Long
+
+token[4].name<span class="o">=</span>Interface
+token[4].type<span class="o">=</span>String
+
+token[5].name<span class="o">=</span>Reason
+token[5].type<span class="o">=</span>String
+
+token[6].name<span class="o">=</span>Action
+token[6].type<span class="o">=</span>String
+
+token[7].name<span class="o">=</span>Direction
+token[7].type<span class="o">=</span>String
+
+token[8].name<span class="o">=</span>IPVersion
+token[8].type<span class="o">=</span>Long
+
+token[9].name<span class="o">=</span>Message
+token[9].type<span class="o">=</span>String</code></pre></figure>
+
+<p>After tokenizing it is worthwhile finding fields to map these tokens to. I have chosen the following which are hopefully self explanatory:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">event.deviceCustomNumber2<span class="o">=</span>IPVersion
+event.deviceCustomNumber1<span class="o">=</span>RuleNumber
+event.deviceAction<span class="o">=</span>Action
+event.deviceCustomString2Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Filter Reason"</span><span class="o">)</span>
+event.deviceVendor<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"pfSense"</span><span class="o">)</span>
+event.deviceCustomNumber2Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"IP Version"</span><span class="o">)</span>
+event.deviceCustomString2<span class="o">=</span>Reason
+event.deviceDirection<span class="o">=</span>__getDeviceDirection<span class="o">(</span>Direction<span class="o">)</span>
+event.deviceEventClassId<span class="o">=</span>__concatenate<span class="o">(</span><span class="s2">"pfSense</span><span class="se">\:</span><span class="s2">filterlog</span><span class="se">\:</span><span class="s2">"</span>,Reason,<span class="s2">"</span><span class="se">\:</span><span class="s2">"</span>,Action,<span class="s2">"</span><span class="se">\:</span><span class="s2">"</span>,Direction<span class="o">)</span>
+event.deviceSeverity<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Low"</span><span class="o">)</span>
+event.deviceProduct<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Filter Log"</span><span class="o">)</span>
+event.deviceCustomNumber1Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Rule Number"</span><span class="o">)</span>
+event.deviceInboundInterface<span class="o">=</span>Interface</code></pre></figure>
+
+<p>As you can see, some of the fields are a direct mapping, others however utilise what is known as a “double underscore operator”. There are plenty of these all detailed in the FlexConn Developers Guide. The two double underscore operators used above are:<br />
+<code class="highlighter-rouge">__stringConstant</code> = Sets the field as the string value.<br />
+<code class="highlighter-rouge">__getDeviceDirection</code> = Changes the text string “in” or “out” to a 0, or 1 as understood by ArcSight.<br />
+There are many more, one of which is a <code class="highlighter-rouge">__regexToken</code> which provides a third dimension of regex parsing, if one was ever needed.</p>
+
+<p>The full list of these operators is documented on page 171 of the attached <a href="/assets/files/pfsense-flexconnector/FlexConn_DevGuideConfig.pdf">FlexConnector Developer’s Guide</a></p>
+
+<p>Based on our previous analysis we know that there are a few different types of log format which based on our current regex and tokenization will end up in token[9].name, the Message field. To deal with this we use a powerful feature of the ArcSight FlexConnector framework and that is the ability to have <code class="highlighter-rouge">submessages</code>. Apologies if I over emphasise this feature, but it has proved useful in every log format I have ever needed to parse. Essentially you select a field to act as a submessage identifier and another field to act as the submessage token  which needs parsing, after selecting a submessage identifier and submessage field you can have one or more of each. In our example we will select the IPVersion as the submessage identifier because we know we have IPv4 and IPv6, we then select the Message field as the submessage token field this will contain the different message formats under the IPv4 or IPv6 identifiers, namely the TCP, UDP and ICMP variations.</p>
+
+<p>This is done by adding the following two lines:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">submessage.messageid.token<span class="o">=</span>IPVersion
+submessage.token<span class="o">=</span>Message</code></pre></figure>
+
+<p>For each of the sample events provided above, we should break out what would be extracted by the regex, tokenized into the Message field and passed through to the relevant submessage for further parsing by the submessage pattern regex. As an example I am only concerned with IPv4 so the 3 messageids we get are as follows:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">&lt;134&gt;Jan 10 20:55:48 filterlog: 5,,,1000000103,em1,match,block,in,4,0x0,,128,18531,0,none,17,udp,106,192.168.2.104,192.168.64.13,62233,161,86 <span class="c">#original log line</span>
+4,0x0,,128,18531,0,none,17,udp,106,192.168.2.104,192.168.64.13,62233,161,86 <span class="c">#extracted message</span>
+submessage[1].pattern[0].regex<span class="o">=([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">(</span>udp<span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span>
+
+&lt;134&gt;Jan 10 20:56:14 filterlog: 5,,,1000000103,em2,match,block,in,4,0x0,,64,268,0,DF,6,tcp,60,192.168.3.2,192.168.4.2,848,111,0,S,2309590424,,65535,,mss<span class="p">;</span>nop<span class="p">;</span>wscale<span class="p">;</span>sackOK<span class="p">;</span>TS <span class="c">#original log line</span>
+4,0x0,,64,268,0,DF,6,tcp,60,192.168.3.2,192.168.4.2,848,111,0,S,2309590424,,65535,,mss<span class="p">;</span>nop<span class="p">;</span>wscale<span class="p">;</span>sackOK<span class="p">;</span>TS <span class="c">#extracted message</span>
+submessage[1].pattern[1].regex<span class="o">=([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">(</span>tcp<span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span>
+
+&lt;134&gt;Jan  9 19:09:14 filterlog: 77,,,1000002665,em0,match,pass,out,4,0x0,,64,23092,0,none,1,icmp,28,10.0.2.15,10.0.2.2,request,20177,08 <span class="c">#original log line</span>
+4,0x0,,64,23092,0,none,1,icmp,28,10.0.2.15,10.0.2.2,request,20177,08 <span class="c">#extracted message</span>
+submessage[1].pattern[2].regex<span class="o">=([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">(</span>icmp<span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span></code></pre></figure>
+
+<p>Note the only difference is the number of comma separated values extracted, and they key udp/tcp/icmp field.</p>
+
+<h2 id="completing-the-submessage-parsers">Completing the Submessage Parsers</h2>
+
+<p>I am going to use the IPv4 UDP submessage as an example by stepping through each line and explaining its purpose and how it works. The full submessage section for IPv4 UDP is:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">submessage[1].messageid<span class="o">=</span>4
+submessage[1].pattern.count<span class="o">=</span>3
+submessage[1].pattern[0].regex<span class="o">=([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">(</span>udp<span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span><span class="se">\\</span>,<span class="o">([</span>^,]<span class="k">*</span><span class="o">)</span>
+submessage[1].pattern[0].fields<span class="o">=</span>event.transportProtocol,event.fileSize,event.sourcePort,event.destinationPort
+submessage[1].pattern[0].mappings<span class="o">=</span><span class="nv">$8</span>|<span class="nv">$9</span>|<span class="nv">$12</span>|<span class="nv">$13</span>
+submessage[1].pattern[0].extramappings<span class="o">=</span>event.name<span class="se">\=</span>__concatenate<span class="o">(</span><span class="s2">"IPv4 "</span>,__toUpperCase<span class="o">(</span><span class="nv">$8</span><span class="o">)</span>,<span class="s2">" Packet"</span><span class="o">)</span>|event.sourceAddress<span class="se">\=</span>__regexTokenAsAddress<span class="o">(</span><span class="nv">$10</span>,<span class="s2">"(.*)"</span><span class="o">)</span>|event.destinationAddress<span class="se">\=</span>__regexTokenAsAddress<span class="o">(</span><span class="nv">$11</span>,<span class="s2">"(.*)"</span><span class="o">)</span></code></pre></figure>
+
+<p><b>submessage[1].messageid=4</b><br />
+This is the second submessage messageid (they begin at 0), this submessage is looking for <code class="highlighter-rouge">4</code> in the <code class="highlighter-rouge">IPVersion</code> field (we previously defined this as the submessage.messageid.token). Anything with <code class="highlighter-rouge">4</code> in the <code class="highlighter-rouge">IPVersion</code> field will have its <code class="highlighter-rouge">Message</code> field passed through to this submessage section for additional parsing based on the submessage[x].pattern[x].regex detailed above.</p>
+
+<p><b>submessage[1].pattern.count=3</b><br />
+This states there are 3 different possible patterns, we know these to be UDP, TCP and ICMP.</p>
+
+<p><b>submessage[1].pattern[0].regex=…..</b><br />
+This is the first regex pattern for the submessage. As with submessages the pattern count also starts at 0.</p>
+
+<p><b>submessage[1].pattern[0].fields=…..</b><br />
+<b>submessage[1].pattern[0].mappings=…..</b><br />
+These two lines should be treated together in this configuration. The mappings line is not strictly required if and only if you tokenize all of the fields extracted by the regex in the correct order. In this case we are not doing this, and only care about a subset of the fields. <br />
+When defining a subset of fields you must provide a fields and mappings configuration so that the framework knows where to place the field. In our case:</p>
+<ul>
+  <li>event.transportProtocol = $8</li>
+  <li>event.fileSize=$9</li>
+  <li>event.sourcePort=$12</li>
+  <li>event.destinationPort=$13</li>
+</ul>
+
+<p><b>submessage[1].pattern[0].extramappings=….</b><br />
+Extramappings are incredibly useful when you want to add arbitrary string fields, or perform additional functions to the extracted field before mapping it to a field. In the example above I am making the event.name field more readable, and parsing the IP addresses, which are currently strings, into the required format by ArcSight, this is covered by the __regexTokenAsAddress operator which is documented fully in the FlexConnectors Developer Guide attached earlier.</p>
+
+<h2 id="applying-the-parser">Applying the Parser</h2>
+
+<p>At this stage we are ready to apply the parser to a syslog daemon Smart Connector. To do this we place the <code class="highlighter-rouge">pfsense.subagent.sdkrfilereader.properties</code> file under <code class="highlighter-rouge">/opt/arcsight/connectors/syslog/current/user/agent/flexagent/syslog/</code> changing /opt/arcsight/connectors/syslog depending on where you have installed your connector.</p>
+
+<p>Execute the following commands</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">[</span>bas@connectors ~]<span class="nv">$ </span><span class="nb">sudo </span>mv /tmp/pfsense.subagent.sdkrfilereader.properties /opt/arcsight/connectors/syslog_udp/current/user/agent/flexagent/syslog/pfsense.subagent.sdkrfilereader.properties
+<span class="o">[</span>bas@connectors ~]<span class="nv">$ </span><span class="nb">sudo</span> /etc/init.d/arc_syslog_udp restart</code></pre></figure>
+
+<p>Tail the agent.out.wrapper.log file and look for the following lines:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">INFO   | jvm 1    | 2018/01/11 13:00:49 | <span class="o">[</span>Thu Jan 11 13:00:49 GMT 2018] <span class="o">[</span>INFO <span class="o">]</span> Message processor <span class="o">[</span>Syslog Parser <span class="c">#0[3QkKGy14BABDvRysJAALa-Q==]#0] initialized.</span>
+INFO   | jvm 1    | 2018/01/11 13:00:51 | <span class="o">[</span>Thu Jan 11 13:00:51 GMT 2018] <span class="o">[</span>INFO <span class="o">]</span> First event from <span class="o">[</span>pfSense|Firewall Filter Log||192.168.3.1] received.</code></pre></figure>
+
+<h2 id="results">Results</h2>
+
+<p><img src="/assets/images/pfsense-flexconnector/pfSenseViewer.png" alt="img" class="center-image" /><br />
+<img src="/assets/images/pfsense-flexconnector/pfSenseEventDetails.png" alt="img" class="center-image" /></p>
+
+
+                    
+
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 hidden-xs">
+              <div class="sidebar ">
+  <h2>Recent Posts</h2>
+  <ul>
+    
+    <li><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></li>
+    
+    <li><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></li>
+    
+    <li><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></li>
+    
+    <li><a href="/2018/01/arcsight-api-activelists">ArcSight ESM API List, Read, Write, Delete ActiveList Entries</a></li>
+    
+    <li><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></li>
+    
+  </ul>
+</div>
+
+<div class="sidebar">
+  <h2>Tags</h2>
+  <ul class="sideBarTags">
+    
+    
+    <li>
+      <a href="/tag/api" data-toggle="tooltip" data-placement="right" title="1">
+        <span>api</span></a></li>
+    
+    <li>
+      <a href="/tag/arcsight" data-toggle="tooltip" data-placement="right" title="6">
+        <span>arcsight</span></a></li>
+    
+    <li>
+      <a href="/tag/categorization" data-toggle="tooltip" data-placement="right" title="1">
+        <span>categorization</span></a></li>
+    
+    <li>
+      <a href="/tag/cef" data-toggle="tooltip" data-placement="right" title="1">
+        <span>cef</span></a></li>
+    
+    <li>
+      <a href="/tag/counteract" data-toggle="tooltip" data-placement="right" title="1">
+        <span>counteract</span></a></li>
+    
+    <li>
+      <a href="/tag/flexconnector" data-toggle="tooltip" data-placement="right" title="4">
+        <span>flexconnector</span></a></li>
+    
+    <li>
+      <a href="/tag/installation" data-toggle="tooltip" data-placement="right" title="1">
+        <span>installation</span></a></li>
+    
+    <li>
+      <a href="/tag/json" data-toggle="tooltip" data-placement="right" title="1">
+        <span>json</span></a></li>
+    
+    <li>
+      <a href="/tag/ossec" data-toggle="tooltip" data-placement="right" title="2">
+        <span>ossec</span></a></li>
+    
+    <li>
+      <a href="/tag/pfsense" data-toggle="tooltip" data-placement="right" title="1">
+        <span>pfsense</span></a></li>
+    
+    <li>
+      <a href="/tag/squid" data-toggle="tooltip" data-placement="right" title="1">
+        <span>squid</span></a></li>
+    
+  </ul>
+</div>
+
+            </div>
+          </div>
+        </div>
+        
+
+      </div>
+          <footer class="footer-distributed">
+      <div class="container">
+        <div class="footer">
+          <h6>Follow me</h6>
+
+<ul class="social-media">
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <li>
+      <a title="feed.xml RSS" href="/feed.xml" target="_blank"><i class="fa fa-rss fa-2x"></i></a>
+    </li>
+  
+
+</ul>
+
+	  <p><a href="https://github.com/streetturtle/jekyll-clean-dark">Template</a> by Pavel Makhov &copy; 2015-2017</p>
+        </div>
+      </div>
+    </footer>
+
+    </div>
+  </body>
+</html>

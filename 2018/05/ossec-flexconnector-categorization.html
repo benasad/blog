@@ -1,0 +1,368 @@
+
+  
+
+
+
+
+
+
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BASEC Blog | ArcSight FlexConnector OSSEC Categorization </title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/bootstrap.min.js"></script>
+  <script src="/assets/js/header.js"></script>
+  <script src="/assets/js/toc.js"></script>
+  <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/theme.css" rel="stylesheet">
+  <link href="/assets/css/syntax.css" rel="stylesheet">
+  <link href="/assets/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  
+
+  
+
+
+ <script type="text/javascript">
+  WebFontConfig = {
+    google: {
+      families: ['Ubuntu::latin']
+    }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+      '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+    wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">BASEC Blog</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/">/home</a></li>
+          <li><a href="/archive.html">/archive</a></li>
+          <li><a href="/tags.html">/tags</a></li>
+          <li><a href="/about.html">/about</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="wrapper">
+      <div class="content">
+        <div class="container container-center">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="article">
+                <div class="well">
+                  <h1><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></h1>
+                  <div class="post-meta">
+                    <div class="post-time">
+                      <i class="fa fa-calendar"></i>
+                      <time>25 May 2018</time>
+                    </div>
+                    <ul>
+                      
+                        <li><a href="/tag/ossec">ossec</a></li>
+                      
+                        <li><a href="/tag/categorization">categorization</a></li>
+                      
+                        <li><a href="/tag/arcsight">arcsight</a></li>
+                      
+                        <li><a href="/tag/flexconnector">flexconnector</a></li>
+                      
+                    </ul>
+                  </div>
+                  <div class="post-content">
+                    <div id="toc" class="toc"></div>
+                    <h2 id="introduction">Introduction</h2>
+
+<p>As you may have seen in a previous blog post, I wrote a JSON FlexConnector to parse the alerts output from OSSEC (an open-source log based host intrusion detection system.) This blog post covers the important step which should always come after writing a FlexConnector, ensuring all messages types are categorized correctly in line with existing ArcSight Event Categorization. For additional details, this document from back in 2014 is a great help <a href="/assets/files/ossec-categorization-flexconnector/ArcSightCategorizationWhitePaper.pdf">ArcSightCategorizationWhitePaper.pdf</a></p>
+
+<h2 id="what-is-categorization">What is Categorization?</h2>
+
+<p>ArcSight Categorization is a layer of abstraction on top of the Common Event Format. CEF is produced when SmartConnectors parse and tokenise events into known fields, whilst this is incredibly powerful, this will still result in differences between vendors when, for example, it comes to identifying a login to a Windows Desktop, a Cisco Router or a SSH session.</p>
+
+<p>Categorization provides a solution to this by providing a taxonomy of fields and known values for numerous actions, mapping all the individual signatures to this taxonomy allows us to then write sensor-independent content.</p>
+
+<p>To summarise the following is a list of benefits created by the ArcSight taxonomy:</p>
+<ul>
+  <li>Vendor independence, mainly for content creation</li>
+  <li>Analysts do not need to remember specific nomenclatures for all the devices in the environment.</li>
+  <li>ArcSight Taxonomy immediately captures event impact</li>
+  <li>Content generation is easier and more effective (Rules, Data Monitors, Forensic Analysis, Reports, Pattern Discovery)</li>
+  <li>Content is generic (to support a new IDS, none of the rules have to be rewritten, because they utilize the categorized events)</li>
+  <li>More powerful content can be written, for example, correlation rules can reason about “failures” and “successes” as opposed to relying upon the reporting devices</li>
+</ul>
+
+<h2 id="give-us-some-examples">Give us some examples</h2>
+
+<p>The ArcSight Taxonomy uses seven dimensions (fields) to characterize an event.</p>
+<ul>
+  <li>Object - Events are always about a certain object. An object can, for example, be an application, the operating system, a database, a file, or the memory of a server</li>
+  <li>Behavior - Events not only refer to certain objects, but there is generally an action or a behavior associated with an event. What is being done to an object? Behaviors include access, execution, or modification</li>
+  <li>Outcome - With the first two dimensions, we know what object is being referred to and what action targeted the object. However, we do not know whether the behavior was successful or not. Therefore, the outcome is a success, a failure, or an attempt.</li>
+  <li>Technique - The type of events with respect to a security domain. Is an event talking about a denial of service, a brute force attack, IDS evasions</li>
+  <li>Device Group - Many devices serve a multitude of purposes in one product. Intrusion Prevention Systems, for example, generate events associated with their firewall capabilities, as well as their intrusion detection capabilities. Routers can generate events associated with user authentication, etc. To distinguish between these types of events, we introduced a dimension called deviceGroup. This dimension lets us query, for example, all the firewall-type events as opposed to all the events generated by a firewall.</li>
+  <li>Device Type - Many devices serve a multitude of purposes in one product. Intrusion Prevention Systems, for example, generate events associated with their firewall capabilities, as well as their intrusion detection capabilities. Routers can generate events associated with user authentication, etc. To distinguish between these types of events, we introduced a dimension called deviceGroup. This dimension lets us query, for example, all the firewall-type events as opposed to all the events generated by a firewall.</li>
+  <li>We need the capability to separate normal events from hostile events. We also need to know whether certain activity reported by the device impacts the availability, confidentiality, or integrity of our systems. All this information is captured in the significance.</li>
+</ul>
+
+<table class="mbtablestyle">
+  <thead>
+    <tr>
+      <th>Event Description</th>
+      <th>Object</th>
+      <th>Behavior</th>
+      <th>Technique</th>
+      <th>Device Group</th>
+      <th>Outcome</th>
+      <th>Significance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Network communication was allowed</td>
+      <td>/Host/Application</td>
+      <td>/Communicate</td>
+      <td> </td>
+      <td>/Firewall</td>
+      <td>/Success</td>
+      <td>/Informational</td>
+    </tr>
+    <tr>
+      <td>A process started successfully</td>
+      <td>/Host/Resource/Process</td>
+      <td>/Execute/Start</td>
+      <td> </td>
+      <td>/Application</td>
+      <td>/Success</td>
+      <td>/Informational</td>
+    </tr>
+    <tr>
+      <td>Successful login</td>
+      <td>/Host/Operating System</td>
+      <td>/Authentication/Verify</td>
+      <td> </td>
+      <td>/Operating System</td>
+      <td>/Success</td>
+      <td>/Informational</td>
+    </tr>
+    <tr>
+      <td>Failed login</td>
+      <td>/Host/Operating System</td>
+      <td>/Authentication/Verify</td>
+      <td> </td>
+      <td>/Operating System</td>
+      <td>/Failure</td>
+      <td>/Informational/Warning</td>
+    </tr>
+    <tr>
+      <td>A vulnerability exploit was detected</td>
+      <td>/Host/Application</td>
+      <td>/Communicate</td>
+      <td>/Exploit/Vulnerability</td>
+      <td>/IDS/Network</td>
+      <td>/Attempt</td>
+      <td>/Compromise</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="where-to-begin">Where to begin</h2>
+
+<p>As part of writing a Flex Connector it is important to think about how you are going to populate the deviceEventClassId field. The deviceEventClassId field is usually the field which is used to set the categorization of the event, as it is expected to uniquely identify the specific event. In the OSSEC example this is an easy choice, as there is already a unique identifier provided for each alert. For less well writen device logs the deviceEventClassId field can be constructed by concatenating other fields in the log.</p>
+
+<p>After writing the FlexConnector I allowed it to run for a few days in my environment to build up a list of deviceEventClassIds to categorize as an example here. In reality it is better to find a documented list of all potential field values, as you could be waiting a while for them to fire in real life.</p>
+
+<p>I have shown two methods for identifying the unique deviceEventClassIds, by far the easiest is to use the ESM Command Center with a quick search.</p>
+
+<p><img src="/assets/images/ossec-categorization-flexconnector/commandcentersearch.png" alt="img" class="center-image" /><br />
+<img src="/assets/images/ossec-categorization-flexconnector/queryviewer.png" alt="img" class="center-image" /></p>
+
+<h2 id="applying-the-categorization">Applying the Categorization</h2>
+
+<p>Categorization happens on the ArcSight SmartConnector. The connector contains a mapping table (a categorization file) for each of the devices. A categorization file contains a header-line and is followed by all the categorization entries. The header line looks as follows:</p>
+
+<figure class="highlight"><pre><code class="language-conf" data-lang="conf"><span class="n">event</span>.<span class="n">deviceEventClassId</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryObject</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryBehavior</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryTechnique</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryDeviceGroup</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categorySignificance</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryOutcome</span></code></pre></figure>
+
+<p>This tells the connector to look out for the deviceEventClassId field and whenever a match is found, it is to set the following seven category fields.</p>
+
+<p>To build a categorization file it is therefore necessary to know about as many possible deviceEventClassIds as possible. The values of those deviceEventClassIds then have to be added to the categorization file along with the correct category entries.</p>
+
+<p>Looking at the output of my deviceEventClassId query above the following might be a suitable first attempt at categorizing these fields:</p>
+
+<figure class="highlight"><pre><code class="language-conf" data-lang="conf"><span class="n">event</span>.<span class="n">deviceEventClassId</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryObject</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryBehavior</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryTechnique</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryDeviceGroup</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categorySignificance</span>,<span class="n">set</span>.<span class="n">event</span>.<span class="n">categoryOutcome</span>
+<span class="m">503</span>,/<span class="n">Host</span>/<span class="n">Application</span>/<span class="n">Service</span>,/<span class="n">Execute</span>/<span class="n">Start</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">504</span>,/<span class="n">Host</span>/<span class="n">Application</span>/<span class="n">Service</span>,/<span class="n">Execute</span>/<span class="n">Stop</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>/<span class="n">Error</span>,/<span class="n">Success</span>
+<span class="m">516</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Found</span>/<span class="n">Misconfigured</span>,,/<span class="n">Assessment</span> <span class="n">Tool</span>,/<span class="n">Informational</span>/<span class="n">Alert</span>,/<span class="n">Failure</span>
+<span class="m">533</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Modify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>/<span class="n">Warning</span>,/<span class="n">Success</span>
+<span class="m">550</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Modify</span>,,/<span class="n">IDS</span>/<span class="n">Host</span>,/<span class="n">Suspicious</span>,/<span class="n">Success</span>
+<span class="m">5501</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">5503</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Failure</span>
+<span class="m">5504</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Suspicious</span>,/<span class="n">Attempt</span>
+<span class="m">554</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Create</span>,,/<span class="n">IDS</span>/<span class="n">Host</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">2932</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Create</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">2933</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Modify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">3333</span>,/<span class="n">Host</span>/<span class="n">Application</span>/<span class="n">Service</span>,/<span class="n">Execute</span>/<span class="n">Stop</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>/<span class="n">Error</span>,/<span class="n">Success</span>
+<span class="m">3334</span>,/<span class="n">Host</span>/<span class="n">Application</span>/<span class="n">Service</span>,/<span class="n">Execute</span>/<span class="n">Start</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">5303</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">5304</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">5402</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">5715</span>,/<span class="n">Host</span>/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">11301</span>,/<span class="n">Host</span>/<span class="n">Application</span>,/<span class="n">Communicate</span>/<span class="n">Query</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">11305</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Access</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>/<span class="n">Alert</span>,/<span class="n">Attempt</span>
+<span class="m">11307</span>,/<span class="n">Host</span>/<span class="n">Application</span>,/<span class="n">Communicate</span>/<span class="n">Query</span>,,/<span class="n">Application</span>,/<span class="n">Suspicious</span>,/<span class="n">Success</span>
+<span class="m">11309</span>,/<span class="n">Host</span>/<span class="n">Application</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">81801</span>,/<span class="n">Host</span>/<span class="n">Application</span>,/<span class="n">Authentication</span>/<span class="n">Verify</span>,,/<span class="n">Application</span>,/<span class="n">Informational</span>,/<span class="n">Success</span>
+<span class="m">700001</span>,/<span class="n">Host</span>/<span class="n">Resource</span>/<span class="n">File</span>,/<span class="n">Found</span>,,/<span class="n">Operating</span> <span class="n">System</span>,/<span class="n">Informational</span>/<span class="n">Alert</span>,/<span class="n">Success</span></code></pre></figure>
+
+<p>Once the file is generated, it has to be placed under:<br />
+user/agent/acp/categorizer/current/<deviceVendor>/<deviceProduct>.csv</deviceProduct></deviceVendor></p>
+
+<p>In my case this is:<br />
+user/agent/acp/categorizer/current/ossec/json_parser.csv</p>
+
+<h2 id="results">Results</h2>
+
+<p>After restarting the connector and allowing enough time for the creation of new events my query now looks like this:<br />
+<img src="/assets/images/ossec-categorization-flexconnector/queryviewerafter.png" alt="img" class="center-image" /></p>
+
+
+                    
+
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 hidden-xs">
+              <div class="sidebar ">
+  <h2>Recent Posts</h2>
+  <ul>
+    
+    <li><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></li>
+    
+    <li><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></li>
+    
+    <li><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></li>
+    
+    <li><a href="/2018/01/arcsight-api-activelists">ArcSight ESM API List, Read, Write, Delete ActiveList Entries</a></li>
+    
+    <li><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></li>
+    
+  </ul>
+</div>
+
+<div class="sidebar">
+  <h2>Tags</h2>
+  <ul class="sideBarTags">
+    
+    
+    <li>
+      <a href="/tag/api" data-toggle="tooltip" data-placement="right" title="1">
+        <span>api</span></a></li>
+    
+    <li>
+      <a href="/tag/arcsight" data-toggle="tooltip" data-placement="right" title="6">
+        <span>arcsight</span></a></li>
+    
+    <li>
+      <a href="/tag/categorization" data-toggle="tooltip" data-placement="right" title="1">
+        <span>categorization</span></a></li>
+    
+    <li>
+      <a href="/tag/cef" data-toggle="tooltip" data-placement="right" title="1">
+        <span>cef</span></a></li>
+    
+    <li>
+      <a href="/tag/counteract" data-toggle="tooltip" data-placement="right" title="1">
+        <span>counteract</span></a></li>
+    
+    <li>
+      <a href="/tag/flexconnector" data-toggle="tooltip" data-placement="right" title="4">
+        <span>flexconnector</span></a></li>
+    
+    <li>
+      <a href="/tag/installation" data-toggle="tooltip" data-placement="right" title="1">
+        <span>installation</span></a></li>
+    
+    <li>
+      <a href="/tag/json" data-toggle="tooltip" data-placement="right" title="1">
+        <span>json</span></a></li>
+    
+    <li>
+      <a href="/tag/ossec" data-toggle="tooltip" data-placement="right" title="2">
+        <span>ossec</span></a></li>
+    
+    <li>
+      <a href="/tag/pfsense" data-toggle="tooltip" data-placement="right" title="1">
+        <span>pfsense</span></a></li>
+    
+    <li>
+      <a href="/tag/squid" data-toggle="tooltip" data-placement="right" title="1">
+        <span>squid</span></a></li>
+    
+  </ul>
+</div>
+
+            </div>
+          </div>
+        </div>
+        
+
+      </div>
+          <footer class="footer-distributed">
+      <div class="container">
+        <div class="footer">
+          <h6>Follow me</h6>
+
+<ul class="social-media">
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <li>
+      <a title="feed.xml RSS" href="/feed.xml" target="_blank"><i class="fa fa-rss fa-2x"></i></a>
+    </li>
+  
+
+</ul>
+
+	  <p><a href="https://github.com/streetturtle/jekyll-clean-dark">Template</a> by Pavel Makhov &copy; 2015-2017</p>
+        </div>
+      </div>
+    </footer>
+
+    </div>
+  </body>
+</html>

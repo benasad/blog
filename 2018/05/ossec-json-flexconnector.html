@@ -1,0 +1,482 @@
+
+  
+
+
+
+
+
+
+
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>BASEC Blog | ArcSight FlexConnector OSSEC JSON </title>
+  <meta name="theme-color" content="#222222" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/assets/js/jquery.min.js"></script>
+  <script src="/assets/js/bootstrap.min.js"></script>
+  <script src="/assets/js/header.js"></script>
+  <script src="/assets/js/toc.js"></script>
+  <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/assets/css/theme.css" rel="stylesheet">
+  <link href="/assets/css/syntax.css" rel="stylesheet">
+  <link href="/assets/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+  
+
+  
+
+
+ <script type="text/javascript">
+  WebFontConfig = {
+    google: {
+      families: ['Ubuntu::latin']
+    }
+  };
+  (function() {
+    var wf = document.createElement('script');
+    wf.src = ('https:' == document.location.protocol ? 'https' : 'http') +
+      '://ajax.googleapis.com/ajax/libs/webfont/1/webfont.js';
+    wf.type = 'text/javascript';
+    wf.async = 'true';
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.insertBefore(wf, s);
+  })();
+</script>
+
+  <nav class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="/">BASEC Blog</a>
+      </div>
+      <div class="collapse navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="/">/home</a></li>
+          <li><a href="/archive.html">/archive</a></li>
+          <li><a href="/tags.html">/tags</a></li>
+          <li><a href="/about.html">/about</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+    <div class="wrapper">
+      <div class="content">
+        <div class="container container-center">
+          <div class="row">
+            <div class="col-md-8">
+              <div class="article">
+                <div class="well">
+                  <h1><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></h1>
+                  <div class="post-meta">
+                    <div class="post-time">
+                      <i class="fa fa-calendar"></i>
+                      <time>10 May 2018</time>
+                    </div>
+                    <ul>
+                      
+                        <li><a href="/tag/ossec">ossec</a></li>
+                      
+                        <li><a href="/tag/json">json</a></li>
+                      
+                        <li><a href="/tag/arcsight">arcsight</a></li>
+                      
+                        <li><a href="/tag/flexconnector">flexconnector</a></li>
+                      
+                    </ul>
+                  </div>
+                  <div class="post-content">
+                    <div id="toc" class="toc"></div>
+                    <h2 id="introduction">Introduction</h2>
+
+<p>The JSON FlexConnector is a relatively new addition to the ArcSight SmartConnector framework. Version 7.8.0 of the SmartConnector framework provides us with the Multiple Folder File version of the JSON FlexConnector and all of the configuration options available with it.</p>
+
+<p>In this sample tutorial I will be using the JSON Alerts log of the <a href="https://github.com/wazuh/wazuh">Wazuh</a> fork of the OSSEC Server. OSSEC is a free, open-source host-based intrusion detection system (HIDS). It performs log analysis, integrity checking, Windows registry monitoring, rootkit detection, time-based alerting, and active response. It provides intrusion detection for most operating systems.</p>
+
+<p>OSSEC does support logging via CEF Syslog, however I noticed that the JSON logs provide a lot more information, and would be a useful tutorial on writing a JSON FlexConnector.</p>
+
+<h2 id="understanding-the-log-format">Understanding The Log Format</h2>
+
+<p>Unfortunately there is no defined log format for an OSSEC alert, it depends entirely on the decoder and rule which are configured within OSSEC and the log option chosen. An example is provided below for a PAM login session via SSH on a CentOS 7 server in both CEF and JSON:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">{</span><span class="s2">"timestamp"</span>:<span class="s2">"2018-05-11T21:21:42+0100"</span>,<span class="s2">"rule"</span>:<span class="o">{</span><span class="s2">"level"</span>:3,<span class="s2">"description"</span>:<span class="s2">"PAM: Login session opened."</span>,<span class="s2">"id"</span>:<span class="s2">"5501"</span>,<span class="s2">"firedtimes"</span>:1,<span class="s2">"mail"</span>:false,<span class="s2">"groups"</span>:[<span class="s2">"pam"</span>,<span class="s2">"syslog"</span>,<span class="s2">"authentication_success"</span>,<span class="s2">"gpg13_7.8"</span>,<span class="s2">"gpg13_7.9"</span><span class="o">]</span>,<span class="s2">"pci_dss"</span>:[<span class="s2">"10.2.5"</span><span class="o">]}</span>,<span class="s2">"agent"</span>:<span class="o">{</span><span class="s2">"id"</span>:<span class="s2">"000"</span>,<span class="s2">"name"</span>:<span class="s2">"ossec.basec.internal"</span><span class="o">}</span>,<span class="s2">"manager"</span>:<span class="o">{</span><span class="s2">"name"</span>:<span class="s2">"ossec.basec.internal"</span><span class="o">}</span>,<span class="s2">"id"</span>:<span class="s2">"1526070102.142893"</span>,<span class="s2">"full_log"</span>:<span class="s2">"May 11 21:21:41 ossec sshd[69352]: pam_unix(sshd:session): session opened for user bas by (uid=0)"</span>,<span class="s2">"predecoder"</span>:<span class="o">{</span><span class="s2">"program_name"</span>:<span class="s2">"sshd"</span>,<span class="s2">"timestamp"</span>:<span class="s2">"May 11 21:21:41"</span>,<span class="s2">"hostname"</span>:<span class="s2">"ossec"</span><span class="o">}</span>,<span class="s2">"decoder"</span>:<span class="o">{</span><span class="s2">"parent"</span>:<span class="s2">"pam"</span>,<span class="s2">"name"</span>:<span class="s2">"pam"</span><span class="o">}</span>,<span class="s2">"data"</span>:<span class="o">{</span><span class="s2">"dstuser"</span>:<span class="s2">"bas"</span>,<span class="s2">"uid"</span>:<span class="s2">"0"</span><span class="o">}</span>,<span class="s2">"location"</span>:<span class="s2">"/var/log/secure"</span><span class="o">}</span></code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">&lt;132&gt;May 11 21:21:42 CEF:0|Wazuh Inc.|Wazuh|v3.1.0|5501|PAM: Login session opened.|3|dvc<span class="o">=</span>ossec <span class="nv">cs1</span><span class="o">=</span>ossec-&gt;/var/log/secure <span class="nv">cs1Label</span><span class="o">=</span>Location <span class="nb">cat</span><span class="o">=</span>pam,syslog,authentication_success,pci_dss_10.2.5,gpg13_7.8,gpg13_7.9 <span class="nv">suser</span><span class="o">=</span>bas <span class="nv">suser</span><span class="o">=</span>bas <span class="nv">msg</span><span class="o">=</span>May 11 21:21:41 ossec sshd[69352]: pam_unix<span class="o">(</span>sshd:session<span class="o">)</span>: session opened <span class="k">for </span>user bas by <span class="o">(</span><span class="nv">uid</span><span class="o">=</span>0<span class="o">)</span></code></pre></figure>
+
+<p>For those interested; the groups, description and ruleId are defined at the rule level as follows:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">&lt;rule <span class="nv">id</span><span class="o">=</span><span class="s2">"5501"</span> <span class="nv">level</span><span class="o">=</span><span class="s2">"3"</span><span class="o">&gt;</span>
+  &lt;if_sid&gt;5500&lt;/if_sid&gt;
+  &lt;match&gt;session opened <span class="k">for </span>user &lt;/match&gt;
+  &lt;description&gt;PAM: Login session opened.&lt;/description&gt;
+  &lt;group&gt;authentication_success,pci_dss_10.2.5,gpg13_7.8,gpg13_7.9&lt;/group&gt;
+&lt;/rule&gt;</code></pre></figure>
+
+<p>Whereas the predecoder, decoder and data fields are extracted by all the decoding prior to the rule firing, an example of extracting the uid from the PAM message is:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">&lt;decoder <span class="nv">name</span><span class="o">=</span><span class="s2">"pam-fields"</span><span class="o">&gt;</span>
+  &lt;parent&gt;pam&lt;/parent&gt;
+  &lt;regex <span class="nv">offset</span><span class="o">=</span><span class="s2">"after_regex"</span><span class="o">&gt;</span><span class="nv">uid</span><span class="o">=(</span><span class="se">\S</span>+<span class="o">)</span>&lt;/regex&gt;
+  &lt;order&gt;uid&lt;/order&gt;
+&lt;/decoder&gt;</code></pre></figure>
+
+<p>Pretty printing the JSON output will help us identify some common fields and the JSON hierarchy:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">{</span>
+  <span class="s2">"timestamp"</span>: <span class="s2">"2018-05-11T21:21:42+0100"</span>,
+  <span class="s2">"rule"</span>: <span class="o">{</span>
+    <span class="s2">"level"</span>: 3,
+    <span class="s2">"description"</span>: <span class="s2">"PAM: Login session opened."</span>,
+    <span class="s2">"id"</span>: <span class="s2">"5501"</span>,
+    <span class="s2">"firedtimes"</span>: 1,
+    <span class="s2">"mail"</span>: <span class="nb">false</span>,
+    <span class="s2">"groups"</span>: <span class="o">[</span>
+      <span class="s2">"pam"</span>,
+      <span class="s2">"syslog"</span>,
+      <span class="s2">"authentication_success"</span>,
+      <span class="s2">"gpg13_7.8"</span>,
+      <span class="s2">"gpg13_7.9"</span>
+    <span class="o">]</span>,
+    <span class="s2">"pci_dss"</span>: <span class="o">[</span>
+      <span class="s2">"10.2.5"</span>
+    <span class="o">]</span>
+  <span class="o">}</span>,
+  <span class="s2">"agent"</span>: <span class="o">{</span>
+    <span class="s2">"id"</span>: <span class="s2">"000"</span>,
+    <span class="s2">"name"</span>: <span class="s2">"ossec.basec.internal"</span>
+  <span class="o">}</span>,
+  <span class="s2">"manager"</span>: <span class="o">{</span>
+    <span class="s2">"name"</span>: <span class="s2">"ossec.basec.internal"</span>
+  <span class="o">}</span>,
+  <span class="s2">"id"</span>: <span class="s2">"1526070102.142893"</span>,
+  <span class="s2">"full_log"</span>: <span class="s2">"May 11 21:21:41 ossec sshd[69352]: pam_unix(sshd:session): session opened for user bas by (uid=0)"</span>,
+  <span class="s2">"predecoder"</span>: <span class="o">{</span>
+    <span class="s2">"program_name"</span>: <span class="s2">"sshd"</span>,
+    <span class="s2">"timestamp"</span>: <span class="s2">"May 11 21:21:41"</span>,
+    <span class="s2">"hostname"</span>: <span class="s2">"ossec"</span>
+  <span class="o">}</span>,
+  <span class="s2">"decoder"</span>: <span class="o">{</span>
+    <span class="s2">"parent"</span>: <span class="s2">"pam"</span>,
+    <span class="s2">"name"</span>: <span class="s2">"pam"</span>
+  <span class="o">}</span>,
+  <span class="s2">"data"</span>: <span class="o">{</span>
+    <span class="s2">"dstuser"</span>: <span class="s2">"bas"</span>,
+    <span class="s2">"uid"</span>: <span class="s2">"0"</span>
+  <span class="o">}</span>,
+  <span class="s2">"location"</span>: <span class="s2">"</span><span class="se">\/</span><span class="s2">var</span><span class="se">\/</span><span class="s2">log</span><span class="se">\/</span><span class="s2">secure"</span>
+<span class="o">}</span></code></pre></figure>
+
+<p><b>There are a set of common fields:</b></p>
+<ul>
+  <li>Timestamp</li>
+  <li>Severity Level</li>
+  <li>Description</li>
+  <li>Rule ID</li>
+  <li>Number of time fired</li>
+  <li>Full Log (Raw Event)</li>
+  <li>Decoder Name</li>
+  <li>Manager Name</li>
+  <li>Agent Name</li>
+</ul>
+
+<p><b>There are then many rule specific fields:</b></p>
+<ul>
+  <li>Filename</li>
+  <li>Action</li>
+  <li>Source Address</li>
+  <li>Destination Address</li>
+  <li>URL</li>
+  <li>Application</li>
+</ul>
+
+<p>As you can see a lot of these log fields follow the CEF convention, however some aren’t included in the CEF syslog message, hence the decision to create a parser for the JSON message.</p>
+
+<h2 id="writing-the-flexconnector-parser">Writing the FlexConnector Parser</h2>
+
+<p>Taken directly from the FlexConnector Developers Guide - The JSON Folder Follower FlexConnector parser builds a tree representation of the JSON log file. A root node is at the top of the tree and trigger nodes are at the bottom (where they generate events).</p>
+
+<p>In this parser we want a single event generated per line of JSON, so we simply set the trigger.node.location as “/”. The location of each field is then represented relative to this position. For example the timestamp field is at the root of the JSON so is simply token[x].location=timestampe, whereas the rule level and description are both in the rule branch so are token[x].location=rule/level and rule/description respectively.</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">{</span>
+  <span class="s2">"timestamp"</span>: <span class="s2">"2018-05-11T21:21:42+0100"</span>,
+  <span class="s2">"rule"</span>: <span class="o">{</span>
+    <span class="s2">"level"</span>: 3,
+    <span class="s2">"description"</span>: <span class="s2">"PAM: Login session opened."</span>,</code></pre></figure>
+
+<p>I have attached my current version of the parser here. It is worth noting that this only really scratches the surface of the capabilities of the JSON FlexConnector framework, much more complex configurations are possible.</p>
+
+<p><a href="/assets/files/ossec-json-flexconnector/ossec.jsonparser.properties">ossec.jsonparser.properties</a></p>
+
+<p>As described above we select the trigger.node.location and tokenise the individual fields by selecting their relative locations. The only other thing to note here is the correct timestamp tokenisation format. This is documented in detail in the FlexConnector Developers Guide. “2018-05-11T21:21:42+0100” =&gt; yyyy-MM-dd’T’HH:mm:ssZ</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">trigger.node.location<span class="o">=</span>/
+
+token.count<span class="o">=</span>19
+
+token[0].name<span class="o">=</span>timestamp
+token[0].type<span class="o">=</span>TimeStamp
+token[0].format<span class="o">=</span>yyyy-MM-dd<span class="s1">'T'</span>HH:mm:ssZ
+token[0].location<span class="o">=</span>timestamp
+
+token[1].name<span class="o">=</span>level
+token[1].type<span class="o">=</span>String
+token[1].location<span class="o">=</span>rule/level
+
+token[2].name<span class="o">=</span>description
+token[2].type<span class="o">=</span>String
+token[2].location<span class="o">=</span>rule/description
+
+token[3].name<span class="o">=</span>id
+token[3].type<span class="o">=</span>Long
+token[3].location<span class="o">=</span>rule/id
+
+token[4].name<span class="o">=</span>firedtimes
+token[4].type<span class="o">=</span>Long
+token[4].location<span class="o">=</span>rule/firedtimes
+
+token[5].name<span class="o">=</span>full_log
+token[5].type<span class="o">=</span>String
+token[5].location<span class="o">=</span>full_log
+
+token[6].name<span class="o">=</span>decodername
+token[6].type<span class="o">=</span>String
+token[6].location<span class="o">=</span>decoder/name
+
+token[7].name<span class="o">=</span>title
+token[7].type<span class="o">=</span>String
+token[7].location<span class="o">=</span>data/title
+
+token[8].name<span class="o">=</span>agentname
+token[8].type<span class="o">=</span>String
+token[8].location<span class="o">=</span>agent/name
+
+token[9].name<span class="o">=</span>managername
+token[9].type<span class="o">=</span>String
+token[9].location<span class="o">=</span>manager/name
+
+token[10].name<span class="o">=</span>file
+token[10].type<span class="o">=</span>String
+token[10].location<span class="o">=</span>data/file
+
+token[11].name<span class="o">=</span>action
+token[11].type<span class="o">=</span>String
+token[11].location<span class="o">=</span>data/action
+
+token[12].name<span class="o">=</span>srcip
+token[12].type<span class="o">=</span>IPAddress
+token[12].location<span class="o">=</span>data/srcip
+
+token[13].name<span class="o">=</span>dstip
+token[13].type<span class="o">=</span>IPAddress
+token[13].location<span class="o">=</span>data/dstip
+
+token[14].name<span class="o">=</span>url
+token[14].type<span class="o">=</span>String
+token[14].location<span class="o">=</span>data/url
+
+token[15].name<span class="o">=</span>application
+token[15].type<span class="o">=</span>String
+token[15].location<span class="o">=</span>data/application
+
+token[16].name<span class="o">=</span>srcuser
+token[16].type<span class="o">=</span>String
+token[16].location<span class="o">=</span>data/srcuser
+
+token[17].name<span class="o">=</span>dstuser
+token[17].type<span class="o">=</span>String
+token[17].location<span class="o">=</span>data/dstuser
+
+token[18].name<span class="o">=</span>location
+token[18].type<span class="o">=</span>String
+token[18].location<span class="o">=</span>location</code></pre></figure>
+
+<p>Below we are selecting the CEF fields we wish to map the tokenized JSON fields to. This is a good starting point, however given the number of rules defined in OSSEC (1000+) there are likely to be cases where multiple fields could match the CEF field. If you identify this as being the case you should use the <b>__oneOf</b> operator and list the fields. An example could be:<br />
+event.sourceAddress=__oneOf(srcip, srcaddress)</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">event.endTime<span class="o">=</span>timestamp
+event.deviceSeverity<span class="o">=</span>level
+event.deviceHostName<span class="o">=</span>agentname
+
+event.name<span class="o">=</span>description
+event.message<span class="o">=</span>title
+event.rawEvent<span class="o">=</span>full_log
+
+event.sourceUserName<span class="o">=</span>srcuser
+event.destinationUserName<span class="o">=</span>dstuser
+
+event.sourceAddress<span class="o">=</span>srcip
+event.destinationAddress<span class="o">=</span>dstip
+
+event.deviceCustomString1<span class="o">=</span>decodername
+event.deviceCustomString1Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Decoder"</span><span class="o">)</span>
+
+event.deviceCustomString2<span class="o">=</span>managername
+event.deviceCustomString2Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Manager Name"</span><span class="o">)</span>
+
+event.deviceCustomString3<span class="o">=</span>location
+event.deviceCustomString3Label<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"Log Location"</span><span class="o">)</span>
+
+event.deviceVendor<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"OSSEC"</span><span class="o">)</span>
+event.deviceProduct<span class="o">=</span>__stringConstant<span class="o">(</span><span class="s2">"JSON Parser"</span><span class="o">)</span>
+
+event.fileName<span class="o">=</span>file</code></pre></figure>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">severity.map.veryhigh.if.deviceSeverity<span class="o">=</span>10,11,12
+severity.map.high.if.deviceSeverity<span class="o">=</span>7,8,9
+severity.map.medium.if.deviceSeverity<span class="o">=</span>4,5,6
+severity.map.low.if.deviceSeverity<span class="o">=</span>1,2,3</code></pre></figure>
+
+<h2 id="applying-the-parser">Applying the Parser</h2>
+
+<p>Follow the usual process to install a SmartConnector and select the JSON Multiple Folder Follower FlexConnector, for verision 7.8.0 of the Framework this is option 16.</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">	15-	ArcSight FlexConnector JSON Folder Follower
+	16-	ArcSight FlexConnector JSON Multiple Folder Follower
+	17-	ArcSight FlexConnector Multiple DB</code></pre></figure>
+
+<p>During installation you will be asked for a folder location, a wildcard regex, and a properties file. In this example we chose /var/ossec/logs/alerts as the log folder, *.json as the wildcard and “ossec” as the properties file. With this configuration the Connector will be expecting a file named ‘ossec.jsonparser.properties’ in the ‘<install location="">/current/user/agent/flexagent' directory.</install></p>
+
+<p>Execute the following commands</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="o">[</span>bas@ossec ~]<span class="nv">$ </span><span class="nb">sudo </span>mv /tmp/ossec.jsonparser.properties /opt/arcsight/connectors/ossecjson/current/user/agent/flexagent/ossec.jsonparser.properties
+<span class="o">[</span>bas@ossec ~]<span class="nv">$ </span><span class="nb">sudo</span> /etc/init.d/arc_sdkjsonmultifolderfollower restart</code></pre></figure>
+
+<p>Tail the agent.out.wrapper.log file and look for the following lines:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">INFO   | jvm 1    | 2018/05/11 23:38:02 | <span class="o">[</span>Fri May 11 23:38:02 BST 2018] <span class="o">[</span>INFO <span class="o">]</span> First event from <span class="o">[</span>OSSEC|JSON Parser||ossec.basec.internal] received.
+INFO   | jvm 1    | 2018/05/11 23:39:01 | <span class="o">[</span>Fri May 11 23:39:01 BST 2018] <span class="o">[</span>INFO <span class="o">]</span> <span class="o">{</span><span class="nv">Eps</span><span class="o">=</span>0.1, <span class="nv">Evts</span><span class="o">=</span>33<span class="o">}</span>
+INFO   | jvm 1    | 2018/05/11 23:39:01 | <span class="o">[</span>Fri May 11 23:39:01 BST 2018] <span class="o">[</span>INFO <span class="o">]</span> <span class="o">{</span><span class="nv">C</span><span class="o">=</span>0, <span class="nv">ET</span><span class="o">=</span>Up, <span class="nv">HT</span><span class="o">=</span>Up, <span class="nv">N</span><span class="o">=</span>BASEC_OSSEC_JSON, <span class="nv">S</span><span class="o">=</span>9, <span class="nv">T</span><span class="o">=</span>0.09997000899730081<span class="o">}</span>
+INFO   | jvm 1    | 2018/05/11 23:39:49 | <span class="o">[</span>Fri May 11 23:39:49 BST 2018] <span class="o">[</span>INFO <span class="o">]</span> First event from <span class="o">[</span>OSSEC|JSON Parser||squid.basec.internal] received.
+INFO   | jvm 1    | 2018/05/11 23:40:01 | <span class="o">[</span>Fri May 11 23:40:01 BST 2018] <span class="o">[</span>INFO <span class="o">]</span> <span class="o">{</span><span class="nv">Eps</span><span class="o">=</span>0.06666666666666667, <span class="nv">Evts</span><span class="o">=</span>37<span class="o">}</span></code></pre></figure>
+
+<h2 id="results">Results</h2>
+
+<p><img src="/assets/images/ossec-json-flexconnector/ossecJSONViewer.png" alt="img" class="center-image" /><br />
+<img src="/assets/images/ossec-json-flexconnector/ossecJSONEventDetails.png" alt="img" class="center-image" /></p>
+
+
+                    
+
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4 hidden-xs">
+              <div class="sidebar ">
+  <h2>Recent Posts</h2>
+  <ul>
+    
+    <li><a href="/2018/05/ossec-flexconnector-categorization">ArcSight FlexConnector OSSEC Categorization</a></li>
+    
+    <li><a href="/2018/05/ossec-json-flexconnector">ArcSight FlexConnector OSSEC JSON</a></li>
+    
+    <li><a href="/2018/03/counteract-action-connector">ArcSight CounterACT Action Connector</a></li>
+    
+    <li><a href="/2018/01/arcsight-api-activelists">ArcSight ESM API List, Read, Write, Delete ActiveList Entries</a></li>
+    
+    <li><a href="/2018/01/pfsense-flexconnector">ArcSight FlexConnector pfSense filterlog</a></li>
+    
+  </ul>
+</div>
+
+<div class="sidebar">
+  <h2>Tags</h2>
+  <ul class="sideBarTags">
+    
+    
+    <li>
+      <a href="/tag/api" data-toggle="tooltip" data-placement="right" title="1">
+        <span>api</span></a></li>
+    
+    <li>
+      <a href="/tag/arcsight" data-toggle="tooltip" data-placement="right" title="6">
+        <span>arcsight</span></a></li>
+    
+    <li>
+      <a href="/tag/categorization" data-toggle="tooltip" data-placement="right" title="1">
+        <span>categorization</span></a></li>
+    
+    <li>
+      <a href="/tag/cef" data-toggle="tooltip" data-placement="right" title="1">
+        <span>cef</span></a></li>
+    
+    <li>
+      <a href="/tag/counteract" data-toggle="tooltip" data-placement="right" title="1">
+        <span>counteract</span></a></li>
+    
+    <li>
+      <a href="/tag/flexconnector" data-toggle="tooltip" data-placement="right" title="4">
+        <span>flexconnector</span></a></li>
+    
+    <li>
+      <a href="/tag/installation" data-toggle="tooltip" data-placement="right" title="1">
+        <span>installation</span></a></li>
+    
+    <li>
+      <a href="/tag/json" data-toggle="tooltip" data-placement="right" title="1">
+        <span>json</span></a></li>
+    
+    <li>
+      <a href="/tag/ossec" data-toggle="tooltip" data-placement="right" title="2">
+        <span>ossec</span></a></li>
+    
+    <li>
+      <a href="/tag/pfsense" data-toggle="tooltip" data-placement="right" title="1">
+        <span>pfsense</span></a></li>
+    
+    <li>
+      <a href="/tag/squid" data-toggle="tooltip" data-placement="right" title="1">
+        <span>squid</span></a></li>
+    
+  </ul>
+</div>
+
+            </div>
+          </div>
+        </div>
+        
+
+      </div>
+          <footer class="footer-distributed">
+      <div class="container">
+        <div class="footer">
+          <h6>Follow me</h6>
+
+<ul class="social-media">
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    <li>
+      <a title="feed.xml RSS" href="/feed.xml" target="_blank"><i class="fa fa-rss fa-2x"></i></a>
+    </li>
+  
+
+</ul>
+
+	  <p><a href="https://github.com/streetturtle/jekyll-clean-dark">Template</a> by Pavel Makhov &copy; 2015-2017</p>
+        </div>
+      </div>
+    </footer>
+
+    </div>
+  </body>
+</html>
